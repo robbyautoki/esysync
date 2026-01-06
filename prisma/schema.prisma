@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Lead {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  firstName    String
+  customFields Json?
+  status       LeadStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  sequenceStates SequenceState[]
+  events         Event[]
+}
+
+enum LeadStatus {
+  ACTIVE
+  UNSUBSCRIBED
+  BOUNCED
+}
+
+model Sequence {
+  id        String      @id @default(cuid())
+  name      String
+  trigger   TriggerType
+  isActive  Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  steps  SequenceStep[]
+  states SequenceState[]
+}
+
+enum TriggerType {
+  ON_IMPORT
+  MANUAL
+  API_WEBHOOK
+}
+
+model SequenceStep {
+  id         String   @id @default(cuid())
+  sequenceId String
+  sequence   Sequence @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  order      Int
+  type       StepType
+
+  // E-Mail Content
+  subject String?
+  content Json?
+
+  // Delay
+  delayValue Int?
+  delayUnit  String?
+
+  // A/B Testing
+  variants Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sequenceId])
+}
+
+enum StepType {
+  EMAIL
+  DELAY
+}
+
+model SequenceState {
+  id               String              @id @default(cuid())
+  leadId           String
+  lead             Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sequenceId       String
+  sequence         Sequence            @relation(fields: [sequenceId], references: [id], onDelete: Cascade)
+  currentStepIndex Int                 @default(0)
+  status           SequenceStateStatus @default(ACTIVE)
+  nextRunAt        DateTime?
+  startedAt        DateTime            @default(now())
+  completedAt      DateTime?
+
+  @@unique([leadId, sequenceId])
+  @@index([sequenceId])
+  @@index([nextRunAt])
+}
+
+enum SequenceStateStatus {
+  ACTIVE
+  COMPLETED
+  STOPPED_BOUNCE
+  UNSUBSCRIBED
+}
+
+model Event {
+  id        String    @id @default(cuid())
+  leadId    String
+  lead      Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type      EventType
+  metadata  Json?
+  createdAt DateTime  @default(now())
+
+  @@index([leadId])
+  @@index([createdAt])
+}
+
+enum EventType {
+  EMAIL_SENT
+  EMAIL_OPENED
+  EMAIL_CLICKED
+  EMAIL_BOUNCED
+  UNSUBSCRIBED
+}

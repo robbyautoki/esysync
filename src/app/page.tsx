@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ManualSendButton } from '@/components/dashboard/manual-send-button'
+import { WarmupStatus } from '@/components/dashboard/warmup-status'
 
 async function getStats() {
   const [
@@ -231,10 +232,12 @@ export default function DashboardPage() {
         </Suspense>
         
         <div className="space-y-4">
+          <WarmupStatus />
+
           <Card>
             <CardHeader className="pb-3">
               <CardTitle>E-Mail Versand</CardTitle>
-              <CardDescription>Manuell fällige E-Mails versenden (nur für lokales Testen)</CardDescription>
+              <CardDescription>Manuell fällige E-Mails versenden</CardDescription>
             </CardHeader>
             <CardContent>
               <ManualSendButton />

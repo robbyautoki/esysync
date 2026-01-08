@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,11 +8,74 @@ import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Info, Copy, Check, ExternalLink } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Info, Copy, Check, ExternalLink, Flame, RotateCcw, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface WarmupStatus {
+  enabled: boolean
+  startDate: string
+  currentDay: number
+  totalDays: number
+  dailyLimit: number | null
+  sentToday: number
+  remaining: number | null
+  isComplete: boolean
+}
 
 export default function SettingsPage() {
   const [copied, setCopied] = useState<string | null>(null)
+  const [warmup, setWarmup] = useState<WarmupStatus | null>(null)
+  const [warmupLoading, setWarmupLoading] = useState(true)
+  const [warmupUpdating, setWarmupUpdating] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/warmup')
+      .then(res => res.json())
+      .then(data => {
+        setWarmup(data)
+        setWarmupLoading(false)
+      })
+      .catch(() => setWarmupLoading(false))
+  }, [])
+
+  const toggleWarmup = async (enabled: boolean) => {
+    setWarmupUpdating(true)
+    try {
+      const res = await fetch('/api/warmup', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ warmupEnabled: enabled })
+      })
+      const data = await res.json()
+      setWarmup(data)
+      toast.success(enabled ? 'Warm-up aktiviert' : 'Warm-up deaktiviert')
+    } catch {
+      toast.error('Fehler beim Speichern')
+    } finally {
+      setWarmupUpdating(false)
+    }
+  }
+
+  const resetWarmup = async () => {
+    if (!confirm('Warm-up wirklich zurücksetzen? Der 42-Tage-Zyklus beginnt von vorne.')) return
+    
+    setWarmupUpdating(true)
+    try {
+      const res = await fetch('/api/warmup', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resetStartDate: true })
+      })
+      const data = await res.json()
+      setWarmup(data)
+      toast.success('Warm-up zurückgesetzt')
+    } catch {
+      toast.error('Fehler beim Zurücksetzen')
+    } finally {
+      setWarmupUpdating(false)
+    }
+  }
 
   const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text)
@@ -38,12 +101,122 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="api" className="space-y-4">
+      <Tabs defaultValue="warmup" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="warmup">
+            <Flame className="h-4 w-4 mr-1" />
+            Warm-up
+          </TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
           <TabsTrigger value="resend">Resend</TabsTrigger>
           <TabsTrigger value="tracking">Tracking</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="warmup" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Domain Warm-up</CardTitle>
+                  <CardDescription>
+                    Verbessere die Zustellbarkeit durch graduelles Erhöhen des E-Mail-Volumens
+                  </CardDescription>
+                </div>
+                {warmupLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                ) : (
+                  <Switch
+                    checked={warmup?.enabled ?? false}
+                    onCheckedChange={toggleWarmup}
+                    disabled={warmupUpdating}
+                  />
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {warmupLoading ? (
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 bg-muted rounded w-1/2" />
+                  <div className="h-4 bg-muted rounded w-3/4" />
+                </div>
+              ) : warmup ? (
+                <>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="p-4 border rounded-lg">
+                      <p className="text-sm text-muted-foreground">Aktueller Tag</p>
+                      <p className="text-2xl font-bold">
+                        {warmup.isComplete ? '✓' : `${warmup.currentDay}/${warmup.totalDays}`}
+                      </p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <p className="text-sm text-muted-foreground">Tageslimit</p>
+                      <p className="text-2xl font-bold">
+                        {warmup.dailyLimit ?? '∞'} E-Mails
+                      </p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <p className="text-sm text-muted-foreground">Heute gesendet</p>
+                      <p className="text-2xl font-bold">{warmup.sentToday}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border rounded-lg bg-muted/50">
+                    <h4 className="font-medium mb-3">Warm-up Schedule</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+                      <div className={warmup.currentDay <= 7 ? 'font-medium text-primary' : 'text-muted-foreground'}>
+                        Tag 1-7: 10/Tag
+                      </div>
+                      <div className={warmup.currentDay > 7 && warmup.currentDay <= 14 ? 'font-medium text-primary' : 'text-muted-foreground'}>
+                        Tag 8-14: 20/Tag
+                      </div>
+                      <div className={warmup.currentDay > 14 && warmup.currentDay <= 21 ? 'font-medium text-primary' : 'text-muted-foreground'}>
+                        Tag 15-21: 35/Tag
+                      </div>
+                      <div className={warmup.currentDay > 21 && warmup.currentDay <= 28 ? 'font-medium text-primary' : 'text-muted-foreground'}>
+                        Tag 22-28: 50/Tag
+                      </div>
+                      <div className={warmup.currentDay > 28 && warmup.currentDay <= 35 ? 'font-medium text-primary' : 'text-muted-foreground'}>
+                        Tag 29-35: 75/Tag
+                      </div>
+                      <div className={warmup.currentDay > 35 ? 'font-medium text-primary' : 'text-muted-foreground'}>
+                        Tag 36-42: 100/Tag
+                      </div>
+                    </div>
+                    {warmup.isComplete && (
+                      <p className="mt-3 text-sm text-green-600">
+                        ✓ Warm-up abgeschlossen - Unbegrenztes Senden möglich
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div>
+                      <p className="text-sm font-medium">Warm-up zurücksetzen</p>
+                      <p className="text-xs text-muted-foreground">
+                        Startet den 42-Tage-Zyklus von vorne
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={resetWarmup}
+                      disabled={warmupUpdating}
+                    >
+                      {warmupUpdating ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4 mr-2" />
+                      )}
+                      Zurücksetzen
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-muted-foreground">Fehler beim Laden der Daten</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="api" className="space-y-4">
           <Card>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/resend'
+import { canSendEmail, logEmailSent, getWarmupStatus } from '@/lib/warmup'
 
 // Convert TipTap JSON to HTML
 function contentToHtml(content: any): string {
@@ -63,6 +64,21 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date()
+    
+    // Check warmup limit
+    const warmupStatus = await getWarmupStatus()
+    let emailsRemainingToday = warmupStatus.remaining
+    
+    if (warmupStatus.enabled && !warmupStatus.isComplete && warmupStatus.remaining === 0) {
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Daily warmup limit reached',
+        warmup: {
+          sentToday: warmupStatus.sentToday,
+          dailyLimit: warmupStatus.dailyLimit
+        }
+      })
+    }
     
     // Find all sequence states that are due
     const dueStates = await db.sequenceState.findMany({
@@ -174,6 +190,19 @@ export async function GET(request: NextRequest) {
               }
             }
           })
+
+          // Log for warmup tracking
+          await logEmailSent(state.leadId, subject)
+          
+          // Check if warmup limit reached
+          if (emailsRemainingToday !== null) {
+            emailsRemainingToday--
+            if (emailsRemainingToday <= 0) {
+              // Stop processing more emails today
+              processed++
+              break
+            }
+          }
         }
 
         // Move to next step
@@ -214,11 +243,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Get updated warmup status
+    const finalWarmupStatus = await getWarmupStatus()
+    
     return NextResponse.json({
       success: true,
       processed,
       errors,
-      total: dueStates.length
+      total: dueStates.length,
+      warmup: {
+        enabled: finalWarmupStatus.enabled,
+        sentToday: finalWarmupStatus.sentToday,
+        dailyLimit: finalWarmupStatus.dailyLimit,
+        remaining: finalWarmupStatus.remaining
+      }
     })
   } catch (error) {
     console.error('Cron job error:', error)

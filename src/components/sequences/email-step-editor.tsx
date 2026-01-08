@@ -20,19 +20,13 @@ import {
   Save, 
   Eye, 
   Send, 
-  Undo, 
-  Redo,
-  Bold,
-  Italic,
-  Link as LinkIcon,
-  List,
-  ListOrdered,
-  Image,
-  Variable,
-  Loader2
+  Loader2,
+  FileText,
+  Sparkles
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { TiptapEditor } from './tiptap-editor'
+import { emailTemplates, EmailTemplate } from '@/lib/email-templates'
 
 interface Step {
   id: string
@@ -65,6 +59,33 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
   const [testEmail, setTestEmail] = useState('')
   const [sendingTest, setSendingTest] = useState(false)
   const [editorInstance, setEditorInstance] = useState<any>(null)
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
+
+  const applyTemplate = (template: EmailTemplate) => {
+    // Check if there's existing content
+    const hasContent = content?.content?.some((node: any) => 
+      node.content?.some((child: any) => child.text?.trim())
+    )
+    
+    if (hasContent) {
+      setSelectedTemplate(template)
+      setTemplateDialogOpen(true)
+    } else {
+      confirmApplyTemplate(template)
+    }
+  }
+
+  const confirmApplyTemplate = (template: EmailTemplate) => {
+    setSubject(template.subject)
+    setContent(template.content)
+    if (editorInstance) {
+      editorInstance.commands.setContent(template.content)
+    }
+    setTemplateDialogOpen(false)
+    setSelectedTemplate(null)
+    toast.success(`Template "${template.name}" angewendet`)
+  }
 
   const handleSave = async () => {
     if (!subject.trim()) {
@@ -126,7 +147,7 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
     }
   }
 
-  // Generate preview HTML
+  // Generate preview HTML with styled buttons
   const getPreviewHtml = useCallback(() => {
     if (!editorInstance) return ''
     
@@ -137,11 +158,23 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
       html = html.replace(new RegExp(`{{${v.key}}}`, 'g'), v.example)
     })
     
+    // Transform arrow links to styled buttons
+    html = html.replace(
+      /<a([^>]*href="([^"]*)"[^>]*)>→\s*([^<]+)<\/a>/gi,
+      `<a$1 style="display: inline-block; background-color: #000; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">$3</a>`
+    )
+    
+    // Style unsubscribe links
+    html = html.replace(
+      /<a([^>]*)>([^<]*[Aa]bmelden[^<]*)<\/a>/gi,
+      `<a$1 style="color: #666; font-size: 12px; text-decoration: underline;">$2</a>`
+    )
+    
     return html
   }, [editorInstance])
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -191,6 +224,39 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
         </TabsList>
 
         <TabsContent value="edit" className="space-y-4">
+          {/* Templates */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Templates</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {emailTemplates.map((template) => (
+                  <Tooltip key={template.id}>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-auto py-2 px-3"
+                        onClick={() => applyTemplate(template)}
+                      >
+                        <FileText className="mr-2 h-3.5 w-3.5" />
+                        {template.name}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      <p className="font-medium">{template.name}</p>
+                      <p className="text-xs text-muted-foreground">{template.description}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Subject */}
           <Card>
             <CardHeader className="pb-3">
@@ -250,28 +316,38 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
               <CardTitle className="text-base">E-Mail Vorschau</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-lg overflow-hidden">
+              {/* Email Preview Container - Resend Style */}
+              <div className="bg-[#f5f5f5] rounded-lg p-6">
                 {/* Email Header */}
-                <div className="bg-muted p-4 border-b">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">An:</span>
-                      <span className="text-sm text-muted-foreground">max@beispiel.de</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Betreff:</span>
-                      <span className="text-sm">
-                        {subject.replace(/{{firstName}}/g, 'Max').replace(/{{email}}/g, 'max@beispiel.de')}
-                      </span>
+                <div className="max-w-[600px] mx-auto mb-4">
+                  <div className="bg-white rounded-t-lg p-4 border-b">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-500">An:</span>
+                        <span className="text-sm">max@beispiel.de</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-500">Betreff:</span>
+                        <span className="text-sm font-medium">
+                          {subject.replace(/{{firstName}}/g, 'Max').replace(/{{email}}/g, 'max@beispiel.de')}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
                 
-                {/* Email Body */}
-                <div 
-                  className="p-6 prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: getPreviewHtml() }}
-                />
+                {/* Email Body - Styled Container */}
+                <div className="max-w-[600px] mx-auto bg-white rounded-lg shadow-sm">
+                  <div 
+                    className="p-10"
+                    style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+                  >
+                    <div 
+                      className="text-base leading-7 text-black [&>p]:mb-4 [&>p:last-child]:mb-0"
+                      dangerouslySetInnerHTML={{ __html: getPreviewHtml() }}
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -312,6 +388,26 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
                 <Send className="mr-2 h-4 w-4" />
               )}
               {sendingTest ? 'Sendet...' : 'Senden'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Confirmation Dialog */}
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Template anwenden?</DialogTitle>
+            <DialogDescription>
+              Der aktuelle Inhalt wird durch das Template ersetzt. Diese Aktion kann nicht rückgängig gemacht werden.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={() => selectedTemplate && confirmApplyTemplate(selectedTemplate)}>
+              Template anwenden
             </Button>
           </DialogFooter>
         </DialogContent>

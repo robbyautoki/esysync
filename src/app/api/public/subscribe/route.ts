@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
           data: {
             leadId: lead.id,
             sequenceId: form.sequenceId,
-            status: 'ACTIVE'
+            status: 'ACTIVE',
+            nextRunAt: new Date()
           }
         })
       }

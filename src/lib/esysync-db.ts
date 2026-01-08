@@ -25,7 +25,7 @@ export async function getEsySyncUsers(): Promise<EsySyncUser[]> {
   try {
     const result = await client.query(`
       SELECT id, firstname, lastname, email, isverified 
-      FROM users 
+      FROM "User" 
       ORDER BY id DESC
     `)
     return result.rows

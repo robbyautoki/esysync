@@ -243,14 +243,14 @@ async function esysyncSubmit(e, formId) {
             <div>
               <Label>Sequenz (optional)</Label>
               <Select
-                value={newForm.sequenceId}
-                onValueChange={(v) => setNewForm({ ...newForm, sequenceId: v })}
+                value={newForm.sequenceId || 'none'}
+                onValueChange={(v) => setNewForm({ ...newForm, sequenceId: v === 'none' ? '' : v })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Keine Sequenz" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Keine Sequenz</SelectItem>
+                  <SelectItem value="none">Keine Sequenz</SelectItem>
                   {sequences.map((seq) => (
                     <SelectItem key={seq.id} value={seq.id}>
                       {seq.name}

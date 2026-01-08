@@ -115,6 +115,22 @@ export async function GET(request: NextRequest) {
           continue
         }
 
+        // Check send time window (if configured)
+        if (state.sequence.sendTime) {
+          const [targetHour, targetMin] = state.sequence.sendTime.split(':').map(Number)
+          const currentHour = now.getUTCHours()
+          const currentMin = now.getUTCMinutes()
+          
+          // Allow 5-minute window
+          const isInWindow = currentHour === targetHour && 
+            currentMin >= targetMin && currentMin < targetMin + 5
+          
+          if (!isInWindow) {
+            // Not in send window, skip for now
+            continue
+          }
+        }
+
         const currentStep = state.sequence.steps[state.currentStepIndex]
         
         if (!currentStep) {

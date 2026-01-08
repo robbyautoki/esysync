@@ -59,6 +59,7 @@ interface Lead {
   email: string
   firstName: string
   status: 'ACTIVE' | 'UNSUBSCRIBED' | 'BOUNCED'
+  score: number
   createdAt: Date
   _count: {
     events: number
@@ -288,6 +289,22 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
               <TableHead>Status</TableHead>
               <TableHead>
                 <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="-ml-3"
+                      onClick={() => handleSort('score')}
+                    >
+                      Score
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Engagement-Score (Opens +5, Clicks +10)</TooltipContent>
+                </Tooltip>
+              </TableHead>
+              <TableHead>
+                <Tooltip>
                   <TooltipTrigger>Sequenzen</TooltipTrigger>
                   <TooltipContent>Anzahl der aktiven Sequenzen</TooltipContent>
                 </Tooltip>
@@ -314,7 +331,7 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
           <TableBody>
             {leads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={8} className="h-24 text-center">
                   <p className="text-muted-foreground">Keine Leads gefunden</p>
                 </TableCell>
               </TableRow>
@@ -333,6 +350,11 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
                     <Badge variant={statusLabels[lead.status].variant}>
                       {statusLabels[lead.status].label}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className={lead.score > 20 ? 'text-green-600 font-medium' : lead.score > 0 ? 'text-foreground' : 'text-muted-foreground'}>
+                      {lead.score}
+                    </span>
                   </TableCell>
                   <TableCell>{lead._count.sequenceStates}</TableCell>
                   <TableCell className="text-muted-foreground">

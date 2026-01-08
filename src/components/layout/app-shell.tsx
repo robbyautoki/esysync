@@ -10,7 +10,8 @@ import {
   Settings,
   ChevronRight,
   Menu,
-  X
+  X,
+  FileText
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard, description: 'Übersicht und Metriken' },
   { name: 'Leads', href: '/leads', icon: Users, description: 'Kontakte verwalten' },
   { name: 'Sequenzen', href: '/sequences', icon: Mail, description: 'E-Mail-Sequenzen erstellen' },
+  { name: 'Formulare', href: '/forms', icon: FileText, description: 'Anmeldeformulare erstellen' },
   { name: 'Einstellungen', href: '/settings', icon: Settings, description: 'App konfigurieren' },
 ]
 

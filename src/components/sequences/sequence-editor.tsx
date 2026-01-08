@@ -58,6 +58,7 @@ interface Sequence {
   isActive: boolean
   trackOpens: boolean
   trackClicks: boolean
+  sendTime: string | null
   steps: Step[]
   _count: { states: number }
 }
@@ -367,8 +368,9 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
         sequenceId={sequence.id}
         trackOpens={sequence.trackOpens}
         trackClicks={sequence.trackClicks}
-        onUpdate={(trackOpens, trackClicks) => {
-          setSequence(prev => ({ ...prev, trackOpens, trackClicks }))
+        sendTime={sequence.sendTime}
+        onUpdate={(trackOpens, trackClicks, sendTime) => {
+          setSequence(prev => ({ ...prev, trackOpens, trackClicks, sendTime }))
         }}
       />
 

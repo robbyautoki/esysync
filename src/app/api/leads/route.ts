@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
   const limit = Number(searchParams.get('limit')) || 20
   const search = searchParams.get('search')
   const status = searchParams.get('status')
+  const sort = searchParams.get('sort') || 'createdAt'
+  const order = searchParams.get('order') || 'desc'
 
   const where: any = {}
 
@@ -29,12 +31,32 @@ export async function GET(request: NextRequest) {
     where.status = status
   }
 
+  // Build orderBy
+  const orderBy: any = {}
+  if (sort === 'score') {
+    orderBy.score = order
+  } else if (sort === 'email') {
+    orderBy.email = order
+  } else if (sort === 'firstName') {
+    orderBy.firstName = order
+  } else {
+    orderBy.createdAt = order
+  }
+
   const [leads, total] = await Promise.all([
     db.lead.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       skip: (page - 1) * limit,
-      take: limit
+      take: limit,
+      include: {
+        _count: {
+          select: {
+            events: true,
+            sequenceStates: true
+          }
+        }
+      }
     }),
     db.lead.count({ where })
   ])

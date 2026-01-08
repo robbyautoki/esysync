@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Eye, MousePointerClick, BarChart3 } from 'lucide-react'
+import { Loader2, Eye, MousePointerClick, BarChart3, Clock } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -27,17 +28,20 @@ interface SequenceTrackingProps {
   sequenceId: string
   trackOpens: boolean
   trackClicks: boolean
-  onUpdate: (trackOpens: boolean, trackClicks: boolean) => void
+  sendTime: string | null
+  onUpdate: (trackOpens: boolean, trackClicks: boolean, sendTime: string | null) => void
 }
 
 export function SequenceTracking({ 
   sequenceId, 
   trackOpens: initialTrackOpens, 
   trackClicks: initialTrackClicks,
+  sendTime: initialSendTime,
   onUpdate 
 }: SequenceTrackingProps) {
   const [trackOpens, setTrackOpens] = useState(initialTrackOpens)
   const [trackClicks, setTrackClicks] = useState(initialTrackClicks)
+  const [sendTime, setSendTime] = useState(initialSendTime)
   const [stats, setStats] = useState<TrackingStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
@@ -81,12 +85,36 @@ export function SequenceTracking({
 
       if (!res.ok) throw new Error()
       
-      onUpdate(newTrackOpens, newTrackClicks)
-      toast.success('Tracking-Einstellung gespeichert')
+      onUpdate(newTrackOpens, newTrackClicks, sendTime)
+      toast.success('Einstellung gespeichert')
     } catch {
       // Revert on error
       if (type === 'opens') setTrackOpens(!value)
       if (type === 'clicks') setTrackClicks(!value)
+      toast.error('Fehler beim Speichern')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const handleSendTimeChange = async (value: string) => {
+    setUpdating(true)
+    const newSendTime = value === 'immediate' ? null : value
+    setSendTime(newSendTime)
+
+    try {
+      const res = await fetch(`/api/sequences/${sequenceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sendTime: newSendTime })
+      })
+
+      if (!res.ok) throw new Error()
+      
+      onUpdate(trackOpens, trackClicks, newSendTime)
+      toast.success('Sendezeit gespeichert')
+    } catch {
+      setSendTime(initialSendTime)
       toast.error('Fehler beim Speichern')
     } finally {
       setUpdating(false)
@@ -194,6 +222,29 @@ export function SequenceTracking({
               onCheckedChange={(v) => handleToggle('clicks', v)}
               disabled={updating}
             />
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <Label>Sendezeit (UTC)</Label>
+            </div>
+            <Select 
+              value={sendTime || 'immediate'} 
+              onValueChange={handleSendTimeChange}
+              disabled={updating}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="immediate">Sofort</SelectItem>
+                <SelectItem value="07:00">07:00</SelectItem>
+                <SelectItem value="09:00">09:00</SelectItem>
+                <SelectItem value="12:00">12:00</SelectItem>
+                <SelectItem value="15:00">15:00</SelectItem>
+                <SelectItem value="18:00">18:00</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </CardContent>

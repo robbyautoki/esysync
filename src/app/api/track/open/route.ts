@@ -42,6 +42,12 @@ export async function GET(request: NextRequest) {
               }
             }
           })
+          
+          // Update lead score (+5 for open)
+          await db.lead.update({
+            where: { id: leadId },
+            data: { score: { increment: 5 } }
+          })
         }
       }
     } catch (error) {

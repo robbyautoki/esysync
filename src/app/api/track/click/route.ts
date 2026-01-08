@@ -18,6 +18,18 @@ export async function GET(request: NextRequest) {
       const [leadId, sequenceId, stepId] = id.split('_')
       
       if (leadId) {
+        // Check if first click on this specific link
+        const existingClick = await db.event.findFirst({
+          where: {
+            leadId,
+            type: 'EMAIL_CLICKED',
+            metadata: {
+              path: ['trackingId'],
+              equals: id
+            }
+          }
+        })
+
         await db.event.create({
           data: {
             leadId,
@@ -30,6 +42,14 @@ export async function GET(request: NextRequest) {
             }
           }
         })
+
+        // Update lead score (+10 for first click on this email)
+        if (!existingClick) {
+          await db.lead.update({
+            where: { id: leadId },
+            data: { score: { increment: 10 } }
+          })
+        }
       }
     } catch (error) {
       console.error('Click tracking error:', error)

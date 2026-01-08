@@ -27,9 +27,10 @@ import { toast } from 'sonner'
 interface EsySyncUser {
   id: number
   email: string
-  fullName: string
   firstName: string
-  createdAt?: string
+  lastName: string
+  fullName: string
+  isVerified: boolean
 }
 
 interface Sequence {
@@ -241,6 +242,7 @@ export default function EsySyncPage() {
                     <TableHead>Name</TableHead>
                     <TableHead>Vorname (Import)</TableHead>
                     <TableHead>E-Mail</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -257,6 +259,13 @@ export default function EsySyncPage() {
                         <Badge variant="outline">{user.firstName}</Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{user.email}</TableCell>
+                      <TableCell>
+                        {user.isVerified ? (
+                          <Badge variant="success">Verifiziert</Badge>
+                        ) : (
+                          <Badge variant="secondary">Nicht verifiziert</Badge>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

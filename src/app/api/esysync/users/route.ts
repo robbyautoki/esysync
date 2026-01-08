@@ -5,13 +5,13 @@ export async function GET() {
   try {
     const users = await getEsySyncUsers()
     
-    // Transform: split name into firstName
     const transformedUsers = users.map(user => ({
       id: user.id,
       email: user.email,
-      fullName: user.name,
-      firstName: user.name?.split(' ')[0] || user.name || 'Unbekannt',
-      createdAt: user.created_at
+      firstName: user.firstname || 'Unbekannt',
+      lastName: user.lastname || '',
+      fullName: [user.firstname, user.lastname].filter(Boolean).join(' ') || 'Unbekannt',
+      isVerified: user.isverified
     }))
 
     return NextResponse.json({ 

@@ -14,19 +14,19 @@ const pool = new Pool({
 
 export interface EsySyncUser {
   id: number
-  name: string
+  firstname: string
+  lastname: string
   email: string
-  created_at?: Date
+  isverified: boolean
 }
 
 export async function getEsySyncUsers(): Promise<EsySyncUser[]> {
   const client = await pool.connect()
   try {
-    // First, let's see what tables exist
     const result = await client.query(`
-      SELECT id, name, email, created_at 
+      SELECT id, firstname, lastname, email, isverified 
       FROM users 
-      ORDER BY created_at DESC
+      ORDER BY id DESC
     `)
     return result.rows
   } finally {

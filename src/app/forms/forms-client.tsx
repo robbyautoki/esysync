@@ -102,7 +102,7 @@ export function FormsClient({ forms: initialForms, sequences }: {
   }
 
   const getEmbedCode = (form: Form) => {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://esysync.vercel.app'
+    const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://esysync.vercel.app'
     return `<!-- EsySync Signup Form -->
 <form id="esysync-form-${form.id}" onsubmit="return esysyncSubmit(event, '${form.id}')">
   <input type="text" name="firstName" placeholder="Vorname" required style="padding: 10px; margin: 5px 0; width: 100%; box-sizing: border-box;">

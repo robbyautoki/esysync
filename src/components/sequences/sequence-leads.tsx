@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Trash2, Users } from 'lucide-react'
+import { Loader2, Trash2, Users, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -30,6 +30,7 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
   const [loading, setLoading] = useState(true)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [removing, setRemoving] = useState(false)
+  const [resettingId, setResettingId] = useState<string | null>(null)
 
   const fetchLeads = async () => {
     try {
@@ -89,6 +90,24 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
       toast.error('Fehler beim Entfernen')
     } finally {
       setRemoving(false)
+    }
+  }
+
+  const resetLead = async (leadId: string) => {
+    setResettingId(leadId)
+    try {
+      const res = await fetch(`/api/sequences/${sequenceId}/leads/${leadId}`, {
+        method: 'PUT'
+      })
+
+      if (!res.ok) throw new Error('Fehler beim Zurücksetzen')
+
+      toast.success('Lead zurückgesetzt')
+      fetchLeads()
+    } catch {
+      toast.error('Fehler beim Zurücksetzen')
+    } finally {
+      setResettingId(null)
     }
   }
 
@@ -152,8 +171,9 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
                 onCheckedChange={toggleSelectAll}
               />
               <span className="flex-1">Lead</span>
-              <span className="w-24 text-center">Fortschritt</span>
-              <span className="w-24 text-center">Status</span>
+              <span className="w-20 text-center">Fortschritt</span>
+              <span className="w-28 text-center">Status</span>
+              <span className="w-20"></span>
             </div>
 
             {/* Leads */}
@@ -180,13 +200,28 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
                       {lead.email}
                     </p>
                   </div>
-                  <div className="w-24 text-center text-sm">
+                  <div className="w-20 text-center text-sm">
                     {lead.currentStep}/{lead.totalSteps}
                   </div>
-                  <div className="w-24 text-center">
+                  <div className="w-28 text-center">
                     <Badge variant={status.variant}>
                       {status.label}
                     </Badge>
+                  </div>
+                  <div className="w-20 text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => resetLead(lead.id)}
+                      disabled={resettingId === lead.id}
+                      title="Zurücksetzen"
+                    >
+                      {resettingId === lead.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
                 </div>
               )

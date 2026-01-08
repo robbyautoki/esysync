@@ -209,17 +209,25 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
           <span className="text-sm font-medium">
             {selectedIds.length} ausgewählt
           </span>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-              setSequenceLeadIds(selectedIds)
-              setSequenceModalOpen(true)
-            }}
-          >
-            <Mail className="mr-2 h-4 w-4" />
-            Zu Sequenz
-          </Button>
+          {(() => {
+            const activeSelectedIds = selectedIds.filter(id => {
+              const lead = leads.find(l => l.id === id)
+              return lead && lead.status !== 'UNSUBSCRIBED'
+            })
+            return activeSelectedIds.length > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setSequenceLeadIds(activeSelectedIds)
+                  setSequenceModalOpen(true)
+                }}
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                Zu Sequenz ({activeSelectedIds.length})
+              </Button>
+            )
+          })()}
           <Button 
             variant="destructive" 
             size="sm"
@@ -344,15 +352,17 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
                             Details anzeigen
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSequenceLeadIds([lead.id])
-                            setSequenceModalOpen(true)
-                          }}
-                        >
-                          <Mail className="mr-2 h-4 w-4" />
-                          Zu Sequenz hinzufügen
-                        </DropdownMenuItem>
+                        {lead.status !== 'UNSUBSCRIBED' && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSequenceLeadIds([lead.id])
+                              setSequenceModalOpen(true)
+                            }}
+                          >
+                            <Mail className="mr-2 h-4 w-4" />
+                            Zu Sequenz hinzufügen
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem 
                           className="text-destructive"

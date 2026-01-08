@@ -106,6 +106,15 @@ export async function GET(request: NextRequest) {
 
     for (const state of dueStates) {
       try {
+        // Skip unsubscribed leads
+        if (state.lead.status === 'UNSUBSCRIBED') {
+          await db.sequenceState.update({
+            where: { id: state.id },
+            data: { status: 'UNSUBSCRIBED' }
+          })
+          continue
+        }
+
         const currentStep = state.sequence.steps[state.currentStepIndex]
         
         if (!currentStep) {

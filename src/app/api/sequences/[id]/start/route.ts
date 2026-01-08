@@ -37,7 +37,18 @@ export async function POST(
     })
 
     const existingLeadIds = new Set(existingStates.map(s => s.leadId))
-    const newLeadIds = leadIds.filter(id => !existingLeadIds.has(id))
+    
+    // Check for unsubscribed leads
+    const unsubscribedLeads = await db.lead.findMany({
+      where: {
+        id: { in: leadIds },
+        status: 'UNSUBSCRIBED'
+      },
+      select: { id: true }
+    })
+    const unsubscribedIds = new Set(unsubscribedLeads.map(l => l.id))
+    
+    const newLeadIds = leadIds.filter(id => !existingLeadIds.has(id) && !unsubscribedIds.has(id))
 
     // Calculate next run time based on first step
     let nextRunAt = new Date()
@@ -71,7 +82,8 @@ export async function POST(
     return NextResponse.json({
       success: true,
       added,
-      skipped: existingLeadIds.size
+      skipped: existingLeadIds.size,
+      unsubscribed: unsubscribedIds.size
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

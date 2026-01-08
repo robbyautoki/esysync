@@ -16,19 +16,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { leads, sequenceId } = importSchema.parse(body)
 
-    // Get existing emails
+    // Get existing emails and check their status
     const existingLeads = await db.lead.findMany({
       where: {
         email: { in: leads.map(l => l.email.toLowerCase()) }
       },
-      select: { email: true }
+      select: { email: true, status: true }
     })
 
     const existingEmails = new Set(existingLeads.map(l => l.email.toLowerCase()))
+    const unsubscribedEmails = new Set(
+      existingLeads.filter(l => l.status === 'UNSUBSCRIBED').map(l => l.email.toLowerCase())
+    )
     
-    // Filter out duplicates
+    // Filter out duplicates and unsubscribed
     const newLeads = leads.filter(l => !existingEmails.has(l.email.toLowerCase()))
-    const duplicates = leads.length - newLeads.length
+    const duplicates = leads.filter(l => existingEmails.has(l.email.toLowerCase()) && !unsubscribedEmails.has(l.email.toLowerCase())).length
+    const unsubscribedSkipped = unsubscribedEmails.size
 
     // Import new leads
     const errors: string[] = []
@@ -64,6 +68,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       imported,
       duplicates,
+      unsubscribedSkipped,
       errors
     })
   } catch (error) {

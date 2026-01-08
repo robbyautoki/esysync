@@ -39,6 +39,7 @@ import Link from 'next/link'
 import { StepCard } from './step-card'
 import { EmailStepEditor } from './email-step-editor'
 import { SequenceLeads } from './sequence-leads'
+import { SequenceTracking } from './sequence-tracking'
 
 interface Step {
   id: string
@@ -55,6 +56,8 @@ interface Sequence {
   name: string
   trigger: string
   isActive: boolean
+  trackOpens: boolean
+  trackClicks: boolean
   steps: Step[]
   _count: { states: number }
 }
@@ -358,6 +361,16 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
 
       {/* Leads in Sequence */}
       <SequenceLeads sequenceId={sequence.id} />
+
+      {/* Tracking */}
+      <SequenceTracking 
+        sequenceId={sequence.id}
+        trackOpens={sequence.trackOpens}
+        trackClicks={sequence.trackClicks}
+        onUpdate={(trackOpens, trackClicks) => {
+          setSequence(prev => ({ ...prev, trackOpens, trackClicks }))
+        }}
+      />
 
       {/* Info */}
       <Card className="bg-muted/50">

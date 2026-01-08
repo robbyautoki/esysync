@@ -6,6 +6,8 @@ const updateSequenceSchema = z.object({
   name: z.string().min(1).optional(),
   trigger: z.enum(['ON_IMPORT', 'MANUAL', 'API_WEBHOOK']).optional(),
   isActive: z.boolean().optional(),
+  trackOpens: z.boolean().optional(),
+  trackClicks: z.boolean().optional(),
   steps: z.array(z.object({
     id: z.string(),
     type: z.enum(['EMAIL', 'DELAY']),
@@ -58,6 +60,8 @@ export async function PUT(
     if (data.name !== undefined) updateData.name = data.name
     if (data.trigger !== undefined) updateData.trigger = data.trigger
     if (data.isActive !== undefined) updateData.isActive = data.isActive
+    if (data.trackOpens !== undefined) updateData.trackOpens = data.trackOpens
+    if (data.trackClicks !== undefined) updateData.trackClicks = data.trackClicks
 
     const sequence = await db.sequence.update({
       where: { id: params.id },

@@ -170,7 +170,9 @@ export async function GET(request: NextRequest) {
             to: state.lead.email,
             subject,
             html: emailHtml,
-            trackingId
+            trackingId,
+            trackOpens: state.sequence.trackOpens,
+            trackClicks: state.sequence.trackClicks
           })
 
           if (result.error) {

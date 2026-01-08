@@ -31,11 +31,27 @@ async function getStats() {
   ])
 
   const emailsSent = await db.event.count({ where: { type: 'EMAIL_SENT' } })
-  const emailsOpened = await db.event.count({ where: { type: 'EMAIL_OPENED' } })
-  const emailsClicked = await db.event.count({ where: { type: 'EMAIL_CLICKED' } })
+  
+  // Count unique leads who opened/clicked (not total events)
+  const leadsWhoOpened = await db.event.groupBy({
+    by: ['leadId'],
+    where: { type: 'EMAIL_OPENED' }
+  })
+  const leadsWhoClicked = await db.event.groupBy({
+    by: ['leadId'],
+    where: { type: 'EMAIL_CLICKED' }
+  })
+  const leadsWhoReceivedEmail = await db.event.groupBy({
+    by: ['leadId'],
+    where: { type: 'EMAIL_SENT' }
+  })
 
-  const openRate = emailsSent > 0 ? Math.round((emailsOpened / emailsSent) * 100) : 0
-  const clickRate = emailsOpened > 0 ? Math.round((emailsClicked / emailsOpened) * 100) : 0
+  const uniqueOpens = leadsWhoOpened.length
+  const uniqueClicks = leadsWhoClicked.length
+  const uniqueSent = leadsWhoReceivedEmail.length
+
+  const openRate = uniqueSent > 0 ? Math.round((uniqueOpens / uniqueSent) * 100) : 0
+  const clickRate = uniqueOpens > 0 ? Math.round((uniqueClicks / uniqueOpens) * 100) : 0
 
   return {
     totalLeads,

@@ -38,6 +38,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { StepCard } from './step-card'
 import { EmailStepEditor } from './email-step-editor'
+import { SequenceLeads } from './sequence-leads'
 
 interface Step {
   id: string
@@ -354,6 +355,9 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
           )}
         </CardContent>
       </Card>
+
+      {/* Leads in Sequence */}
+      <SequenceLeads sequenceId={sequence.id} />
 
       {/* Info */}
       <Card className="bg-muted/50">

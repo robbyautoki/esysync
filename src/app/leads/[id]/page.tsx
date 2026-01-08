@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { formatDate, formatRelativeDate } from '@/lib/utils'
 import Link from 'next/link'
+import { RemoveFromSequenceButton } from '@/components/leads/remove-from-sequence-button'
 
 const statusConfig = {
   ACTIVE: { label: 'Aktiv', variant: 'success' as const, description: 'Lead erhält E-Mails' },
@@ -257,16 +258,23 @@ export default async function LeadDetailPage({ params }: { params: { id: string 
                           Step {state.currentStepIndex + 1} von {state.sequence.steps.length}
                         </p>
                       </div>
-                      <Badge variant={
-                        state.status === 'ACTIVE' ? 'success' :
-                        state.status === 'COMPLETED' ? 'secondary' :
-                        'destructive'
-                      }>
-                        {state.status === 'ACTIVE' ? 'Aktiv' :
-                         state.status === 'COMPLETED' ? 'Abgeschlossen' :
-                         state.status === 'STOPPED_BOUNCE' ? 'Gestoppt (Bounce)' :
-                         'Abgemeldet'}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={
+                          state.status === 'ACTIVE' ? 'success' :
+                          state.status === 'COMPLETED' ? 'secondary' :
+                          'destructive'
+                        }>
+                          {state.status === 'ACTIVE' ? 'Aktiv' :
+                           state.status === 'COMPLETED' ? 'Abgeschlossen' :
+                           state.status === 'STOPPED_BOUNCE' ? 'Gestoppt (Bounce)' :
+                           'Abgemeldet'}
+                        </Badge>
+                        <RemoveFromSequenceButton 
+                          leadId={lead.id}
+                          sequenceId={state.sequence.id}
+                          sequenceName={state.sequence.name}
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>

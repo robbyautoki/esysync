@@ -78,10 +78,22 @@ export function FormsClient({ forms: initialForms, sequences }: {
 
       if (!res.ok) throw new Error()
       
+      const createdForm = await res.json()
+      
+      // Find sequence name if selected
+      const selectedSequence = newForm.sequenceId 
+        ? sequences.find(s => s.id === newForm.sequenceId) 
+        : null
+      
+      // Add to local state
+      setForms(prev => [{
+        ...createdForm,
+        sequence: selectedSequence ? { id: selectedSequence.id, name: selectedSequence.name } : null
+      }, ...prev])
+      
       toast.success('Formular erstellt')
       setCreateOpen(false)
       setNewForm({ name: '', sequenceId: '', buttonText: 'Anmelden', successMessage: 'Danke für deine Anmeldung!' })
-      router.refresh()
     } catch {
       toast.error('Fehler beim Erstellen')
     } finally {

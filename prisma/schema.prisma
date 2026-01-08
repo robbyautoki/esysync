@@ -126,6 +126,8 @@ model Settings {
   id              String   @id @default("default")
   warmupEnabled   Boolean  @default(true)
   warmupStartDate DateTime @default(now())
+  apiKey          String?  // hashed API key
+  apiKeyHint      String?  // last 4 chars for display
   updatedAt       DateTime @updatedAt
 }
 

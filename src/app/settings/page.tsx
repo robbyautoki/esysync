@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Info, Copy, Check, ExternalLink, Flame, RotateCcw, Loader2 } from 'lucide-react'
+import { Info, Copy, Check, ExternalLink, Flame, RotateCcw, Loader2, Key, RefreshCw, Trash2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface WarmupStatus {
@@ -28,6 +28,23 @@ export default function SettingsPage() {
   const [warmup, setWarmup] = useState<WarmupStatus | null>(null)
   const [warmupLoading, setWarmupLoading] = useState(true)
   const [warmupUpdating, setWarmupUpdating] = useState(false)
+  
+  // API Key state
+  const [apiKeyInfo, setApiKeyInfo] = useState<{ hasKey: boolean; hint: string | null }>({ hasKey: false, hint: null })
+  const [newApiKey, setNewApiKey] = useState<string | null>(null)
+  const [showKey, setShowKey] = useState(false)
+  const [apiKeyLoading, setApiKeyLoading] = useState(true)
+  const [apiKeyGenerating, setApiKeyGenerating] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/settings/api-key')
+      .then(res => res.json())
+      .then(data => {
+        setApiKeyInfo(data)
+        setApiKeyLoading(false)
+      })
+      .catch(() => setApiKeyLoading(false))
+  }, [])
 
   useEffect(() => {
     fetch('/api/warmup')
@@ -82,6 +99,35 @@ export default function SettingsPage() {
     setCopied(key)
     toast.success('Kopiert!')
     setTimeout(() => setCopied(null), 2000)
+  }
+
+  const generateApiKey = async () => {
+    setApiKeyGenerating(true)
+    try {
+      const res = await fetch('/api/settings/api-key', { method: 'POST' })
+      const data = await res.json()
+      setNewApiKey(data.key)
+      setApiKeyInfo({ hasKey: true, hint: data.hint })
+      setShowKey(true)
+      toast.success('API-Key generiert')
+    } catch {
+      toast.error('Fehler beim Generieren')
+    } finally {
+      setApiKeyGenerating(false)
+    }
+  }
+
+  const revokeApiKey = async () => {
+    if (!confirm('API-Key wirklich widerrufen? Alle Integrationen hören auf zu funktionieren.')) return
+    
+    try {
+      await fetch('/api/settings/api-key', { method: 'DELETE' })
+      setApiKeyInfo({ hasKey: false, hint: null })
+      setNewApiKey(null)
+      toast.success('API-Key widerrufen')
+    } catch {
+      toast.error('Fehler beim Widerrufen')
+    }
   }
 
   const apiEndpoint = typeof window !== 'undefined' 
@@ -219,93 +265,133 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="api" className="space-y-4">
+          {/* API Key Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Lead API</CardTitle>
+              <div className="flex items-center gap-2">
+                <Key className="h-5 w-5" />
+                <CardTitle>API-Key</CardTitle>
+              </div>
               <CardDescription>
-                Nutze diese API um Leads programmatisch hinzuzufügen
+                Authentifiziere deine API-Anfragen mit einem Bearer Token
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
+              {apiKeyLoading ? (
                 <div className="flex items-center gap-2">
-                  <Label>Endpoint</Label>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <Info className="h-4 w-4 text-muted-foreground" />
-                    </TooltipTrigger>
-                    <TooltipContent>POST-Request an diese URL senden</TooltipContent>
-                  </Tooltip>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Laden...</span>
                 </div>
-                <div className="flex gap-2">
-                  <code className="flex-1 p-3 bg-muted rounded-lg text-sm font-mono">
-                    {apiEndpoint}
-                  </code>
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => copyToClipboard(apiEndpoint, 'api')}
-                  >
-                    {copied === 'api' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              ) : newApiKey ? (
+                <div className="space-y-3">
+                  <div className="p-4 border border-yellow-500 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+                    <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+                      Speichere diesen Key sicher - er wird nur einmal angezeigt!
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 p-2 bg-white dark:bg-black rounded font-mono text-sm break-all">
+                        {showKey ? newApiKey : '••••••••••••••••••••••••' + newApiKey.slice(-4)}
+                      </code>
+                      <Button variant="ghost" size="icon" onClick={() => setShowKey(!showKey)}>
+                        {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={() => copyToClipboard(newApiKey, 'apikey')}>
+                        {copied === 'apikey' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setNewApiKey(null)}>
+                    Verstanden
                   </Button>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Beispiel-Request</Label>
-                <pre className="p-4 bg-muted rounded-lg text-sm overflow-x-auto">
-{`curl -X POST ${apiEndpoint} \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "email": "max@beispiel.de",
-    "firstName": "Max",
-    "customFields": {
-      "firma": "Beispiel GmbH"
-    },
-    "sequenceId": "optional-sequence-id"
-  }'`}
-                </pre>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Response</Label>
-                <pre className="p-4 bg-muted rounded-lg text-sm">
-{`{
-  "success": true,
-  "lead": {
-    "id": "...",
-    "email": "max@beispiel.de",
-    "firstName": "Max"
-  }
-}`}
-                </pre>
-              </div>
+              ) : apiKeyInfo.hasKey ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div>
+                      <p className="text-sm font-medium">Aktiver API-Key</p>
+                      <code className="text-xs text-muted-foreground">sk_••••••••{apiKeyInfo.hint}</code>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={generateApiKey} disabled={apiKeyGenerating}>
+                        {apiKeyGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+                        Neu generieren
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-destructive" onClick={revokeApiKey}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Noch kein API-Key vorhanden. Generiere einen Key um die API zu nutzen.
+                  </p>
+                  <Button onClick={generateApiKey} disabled={apiKeyGenerating}>
+                    {apiKeyGenerating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Key className="h-4 w-4 mr-2" />}
+                    API-Key generieren
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
+          {/* API Endpoints Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Webhook Trigger</CardTitle>
+              <CardTitle>API Endpoints</CardTitle>
               <CardDescription>
-                Trigger eine Sequenz via API für einen bestehenden Lead
+                Alle Anfragen benötigen den Header: Authorization: Bearer sk_xxx
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Endpoint</Label>
-                <div className="flex gap-2">
-                  <code className="flex-1 p-3 bg-muted rounded-lg text-sm font-mono">
-                    POST /api/sequences/{'{sequenceId}'}/start
-                  </code>
+              <div className="space-y-3">
+                <div className="p-3 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge>GET</Badge>
+                    <code className="text-sm">/api/v1/sequences</code>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Alle Sequenzen abrufen</p>
+                </div>
+                
+                <div className="p-3 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge>GET</Badge>
+                    <code className="text-sm">/api/v1/sequences/:id</code>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Einzelne Sequenz abrufen</p>
+                </div>
+                
+                <div className="p-3 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="secondary">POST</Badge>
+                    <code className="text-sm">/api/v1/sequences/:id</code>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Leads zu Sequenz hinzufügen</p>
+                </div>
+                
+                <div className="p-3 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge>GET</Badge>
+                    <code className="text-sm">/api/v1/leads</code>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Leads abrufen (mit Pagination)</p>
+                </div>
+                
+                <div className="p-3 border rounded-lg">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="secondary">POST</Badge>
+                    <code className="text-sm">/api/v1/leads</code>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Neuen Lead erstellen</p>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Body</Label>
-                <pre className="p-4 bg-muted rounded-lg text-sm">
-{`{
-  "leadIds": ["lead-id-1", "lead-id-2"]
-}`}
+              <div className="space-y-2 pt-4 border-t">
+                <Label>Beispiel-Request</Label>
+                <pre className="p-4 bg-muted rounded-lg text-xs overflow-x-auto">
+{`curl -X GET "${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/sequences" \\
+  -H "Authorization: Bearer sk_your_api_key_here"`}
                 </pre>
               </div>
             </CardContent>

@@ -40,17 +40,7 @@ export const emailTemplates: EmailTemplate[] = [
         { type: 'paragraph', content: [] },
         { type: 'paragraph', content: [{ type: 'text', text: 'Bei Fragen – einfach auf diese Mail antworten.' }] },
         { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Bis bald' }] },
-        { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [] },
-        { 
-          type: 'paragraph', 
-          content: [{ 
-            type: 'text', 
-            marks: [{ type: 'link', attrs: { href: '{{unsubscribe_link}}', target: '_blank' } }],
-            text: 'Abmelden'
-          }] 
-        }
+        { type: 'paragraph', content: [{ type: 'text', text: 'Bis bald' }] }
       ]
     }
   },
@@ -83,17 +73,7 @@ export const emailTemplates: EmailTemplate[] = [
         { type: 'paragraph', content: [] },
         { type: 'paragraph', content: [{ type: 'text', text: 'Oder antworte einfach auf diese Mail.' }] },
         { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Beste Grüße' }] },
-        { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [] },
-        { 
-          type: 'paragraph', 
-          content: [{ 
-            type: 'text', 
-            marks: [{ type: 'link', attrs: { href: '{{unsubscribe_link}}', target: '_blank' } }],
-            text: 'Abmelden'
-          }] 
-        }
+        { type: 'paragraph', content: [{ type: 'text', text: 'Beste Grüße' }] }
       ]
     }
   },
@@ -133,17 +113,7 @@ export const emailTemplates: EmailTemplate[] = [
         { type: 'paragraph', content: [] },
         { type: 'paragraph', content: [{ type: 'text', text: 'Hast du Fragen? Schreib mir einfach.' }] },
         { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Viele Grüße' }] },
-        { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [] },
-        { 
-          type: 'paragraph', 
-          content: [{ 
-            type: 'text', 
-            marks: [{ type: 'link', attrs: { href: '{{unsubscribe_link}}', target: '_blank' } }],
-            text: 'Abmelden'
-          }] 
-        }
+        { type: 'paragraph', content: [{ type: 'text', text: 'Viele Grüße' }] }
       ]
     }
   },
@@ -176,17 +146,7 @@ export const emailTemplates: EmailTemplate[] = [
         { type: 'paragraph', content: [] },
         { type: 'paragraph', content: [{ type: 'text', text: 'Falls du Hilfe brauchst – ich bin da.' }] },
         { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Liebe Grüße' }] },
-        { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [] },
-        { 
-          type: 'paragraph', 
-          content: [{ 
-            type: 'text', 
-            marks: [{ type: 'link', attrs: { href: '{{unsubscribe_link}}', target: '_blank' } }],
-            text: 'Abmelden'
-          }] 
-        }
+        { type: 'paragraph', content: [{ type: 'text', text: 'Liebe Grüße' }] }
       ]
     }
   },
@@ -221,17 +181,7 @@ export const emailTemplates: EmailTemplate[] = [
         { type: 'paragraph', content: [] },
         { type: 'paragraph', content: [{ type: 'text', text: 'Wenn du Fragen hast oder einfach Hallo sagen willst – schreib mir.' }] },
         { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Herzliche Grüße' }] },
-        { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [] },
-        { 
-          type: 'paragraph', 
-          content: [{ 
-            type: 'text', 
-            marks: [{ type: 'link', attrs: { href: '{{unsubscribe_link}}', target: '_blank' } }],
-            text: 'Abmelden'
-          }] 
-        }
+        { type: 'paragraph', content: [{ type: 'text', text: 'Herzliche Grüße' }] }
       ]
     }
   },
@@ -270,17 +220,7 @@ export const emailTemplates: EmailTemplate[] = [
           }] 
         },
         { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [{ type: 'text', text: 'Viel Erfolg!' }] },
-        { type: 'paragraph', content: [] },
-        { type: 'paragraph', content: [] },
-        { 
-          type: 'paragraph', 
-          content: [{ 
-            type: 'text', 
-            marks: [{ type: 'link', attrs: { href: '{{unsubscribe_link}}', target: '_blank' } }],
-            text: 'Abmelden'
-          }] 
-        }
+        { type: 'paragraph', content: [{ type: 'text', text: 'Viel Erfolg!' }] }
       ]
     }
   }

@@ -1,5 +1,5 @@
 /**
- * Wraps email content in a styled HTML template (Resend/Apple Style)
+ * Wraps email content in a styled HTML template (Apple Style - clean, minimal)
  */
 export function wrapEmailHtml(content: string): string {
   // Transform arrow links to styled buttons
@@ -23,14 +23,14 @@ export function wrapEmailHtml(content: string): string {
   </noscript>
   <![endif]-->
 </head>
-<body style="margin: 0; padding: 0; background-color: #f5f5f5; -webkit-font-smoothing: antialiased;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5;">
+<body style="margin: 0; padding: 0; background-color: #ffffff; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #ffffff;">
     <tr>
-      <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 8px;">
+      <td align="center" style="padding: 48px 24px;">
+        <table role="presentation" width="560" cellspacing="0" cellpadding="0" style="max-width: 560px; width: 100%;">
           <tr>
-            <td style="padding: 48px 40px;">
-              <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 16px; line-height: 28px; color: #000000;">
+            <td>
+              <div style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 17px; line-height: 1.65; color: #1d1d1f; letter-spacing: -0.022em;">
                 ${styledContent}
               </div>
             </td>

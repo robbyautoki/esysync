@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'sonner'
-import { AppShell } from '@/components/layout/app-shell'
 import { ClerkProvider } from '@clerk/nextjs'
 import { deDE } from '@clerk/localizations'
 
@@ -22,7 +21,7 @@ export default function RootLayout({
     <ClerkProvider localization={deDE}>
       <html lang="de">
         <body className={inter.className}>
-          <AppShell>{children}</AppShell>
+          {children}
           <Toaster position="bottom-right" richColors />
         </body>
       </html>

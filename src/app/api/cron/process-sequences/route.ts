@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
           // Send email
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
           const trackingId = `${state.leadId}_${state.sequenceId}_${currentStep.id}`
-          const unsubscribeToken = Buffer.from(state.leadId).toString('base64')
+          const unsubscribeToken = Buffer.from(state.leadId).toString('base64url')
           
           // Prepare content
           let html = contentToHtml(currentStep.content)

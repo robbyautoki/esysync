@@ -244,6 +244,7 @@ export async function GET(request: NextRequest) {
               metadata: {
                 sequenceId: state.sequenceId,
                 stepId: currentStep.id,
+                stepIndex: state.currentStepIndex,
                 subject,
                 resendId: result.data?.id
               }

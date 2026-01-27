@@ -23,6 +23,12 @@ export async function GET(
       return NextResponse.json({ error: 'Sequence not found' }, { status: 404 })
     }
 
+    // Create stepId to index mapping
+    const stepIdToIndex: Record<string, number> = {}
+    sequence.steps.forEach((step, index) => {
+      stepIdToIndex[step.id] = index
+    })
+
     // Get all events for this sequence
     const events = await db.event.findMany({
       where: {
@@ -71,7 +77,11 @@ export async function GET(
 
     for (const event of events) {
       const metadata = event.metadata as Record<string, unknown> | null
-      const stepIndex = metadata?.stepIndex as number | undefined
+      // Support both stepIndex (new) and stepId (old) for backward compatibility
+      let stepIndex = metadata?.stepIndex as number | undefined
+      if (stepIndex === undefined && metadata?.stepId) {
+        stepIndex = stepIdToIndex[metadata.stepId as string]
+      }
 
       if (event.type === 'EMAIL_SENT') {
         sentLeads.add(event.leadId)

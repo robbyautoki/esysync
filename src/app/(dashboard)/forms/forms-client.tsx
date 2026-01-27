@@ -1,11 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
@@ -15,14 +24,24 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { Plus, Code, Copy, FileText, ExternalLink, Trash2 } from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Plus, Code, Copy, FileText, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Form {
@@ -32,6 +51,7 @@ interface Form {
   buttonText: string
   successMessage: string
   submissions: number
+  createdAt: Date
   sequence: { id: string; name: string } | null
 }
 
@@ -40,14 +60,27 @@ interface Sequence {
   name: string
 }
 
+function formatRelativeDate(date: Date): string {
+  const now = new Date()
+  const diff = now.getTime() - new Date(date).getTime()
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  
+  if (days === 0) return 'heute'
+  if (days === 1) return 'gestern'
+  if (days < 7) return `vor ${days} Tagen`
+  if (days < 30) return `vor ${Math.floor(days / 7)} Wochen`
+  return `vor ${Math.floor(days / 30)} Monaten`
+}
+
 export function FormsClient({ forms: initialForms, sequences }: { 
   forms: Form[]
   sequences: Sequence[]
 }) {
-  const router = useRouter()
   const [forms, setForms] = useState(initialForms)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [embedOpen, setEmbedOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedForm, setSelectedForm] = useState<Form | null>(null)
   const [newForm, setNewForm] = useState({
     name: '',
@@ -56,6 +89,21 @@ export function FormsClient({ forms: initialForms, sequences }: {
     successMessage: 'Danke für deine Anmeldung!'
   })
   const [creating, setCreating] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    )
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === forms.length) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(forms.map(f => f.id))
+    }
+  }
 
   const handleCreate = async () => {
     if (!newForm.name.trim()) {
@@ -79,15 +127,13 @@ export function FormsClient({ forms: initialForms, sequences }: {
       if (!res.ok) throw new Error()
       
       const createdForm = await res.json()
-      
-      // Find sequence name if selected
       const selectedSequence = newForm.sequenceId 
         ? sequences.find(s => s.id === newForm.sequenceId) 
         : null
       
-      // Add to local state
       setForms(prev => [{
         ...createdForm,
+        createdAt: new Date(),
         sequence: selectedSequence ? { id: selectedSequence.id, name: selectedSequence.name } : null
       }, ...prev])
       
@@ -101,15 +147,21 @@ export function FormsClient({ forms: initialForms, sequences }: {
     }
   }
 
-  const handleDelete = async (formId: string) => {
+  const handleDelete = async (formIds: string[]) => {
+    setDeleting(true)
     try {
-      const res = await fetch(`/api/forms/${formId}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
+      await Promise.all(
+        formIds.map(id => fetch(`/api/forms/${id}`, { method: 'DELETE' }))
+      )
       
-      setForms(forms.filter(f => f.id !== formId))
-      toast.success('Formular gelöscht')
+      setForms(prev => prev.filter(f => !formIds.includes(f.id)))
+      setSelectedIds([])
+      toast.success(`${formIds.length} Formular(e) gelöscht`)
     } catch {
       toast.error('Fehler beim Löschen')
+    } finally {
+      setDeleting(false)
+      setDeleteDialogOpen(false)
     }
   }
 
@@ -165,7 +217,7 @@ async function esysyncSubmit(e, formId) {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Signup Forms</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Signup Formulare</h1>
           <p className="text-muted-foreground">
             Erstelle Anmeldeformulare zum Einbetten auf deiner Website
           </p>
@@ -175,6 +227,21 @@ async function esysyncSubmit(e, formId) {
           Neues Formular
         </Button>
       </div>
+
+      {/* Bulk Actions */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+          <span className="text-sm font-medium">{selectedIds.length} ausgewählt</span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setDeleteDialogOpen(true)}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            Löschen
+          </Button>
+        </div>
+      )}
 
       {forms.length === 0 ? (
         <Card>
@@ -191,46 +258,75 @@ async function esysyncSubmit(e, formId) {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {forms.map((form) => (
-            <Card key={form.id}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-base">{form.name}</CardTitle>
-                    <CardDescription>
-                      {form.sequence ? form.sequence.name : 'Keine Sequenz'}
-                    </CardDescription>
-                  </div>
-                  <Badge variant="secondary">{form.submissions} Anmeldungen</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => {
-                      setSelectedForm(form)
-                      setEmbedOpen(true)
-                    }}
-                  >
-                    <Code className="mr-2 h-4 w-4" />
-                    Embed Code
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive"
-                    onClick={() => handleDelete(form.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedIds.length === forms.length && forms.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Sequenz</TableHead>
+                <TableHead className="text-center">Anmeldungen</TableHead>
+                <TableHead>Erstellt</TableHead>
+                <TableHead className="w-32">Aktionen</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {forms.map((form) => (
+                <TableRow key={form.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.includes(form.id)}
+                      onCheckedChange={() => toggleSelect(form.id)}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{form.name}</TableCell>
+                  <TableCell>
+                    {form.sequence ? (
+                      <Badge variant="secondary">{form.sequence.name}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="outline">{form.submissions}</Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatRelativeDate(form.createdAt)}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedForm(form)
+                          setEmbedOpen(true)
+                        }}
+                      >
+                        <Code className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => {
+                          setSelectedIds([form.id])
+                          setDeleteDialogOpen(true)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -301,7 +397,7 @@ async function esysyncSubmit(e, formId) {
       <Dialog open={embedOpen} onOpenChange={setEmbedOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Embed Code</DialogTitle>
+            <DialogTitle>Embed Code - {selectedForm?.name}</DialogTitle>
             <DialogDescription>
               Kopiere diesen Code und füge ihn in deine Website ein
             </DialogDescription>
@@ -309,16 +405,19 @@ async function esysyncSubmit(e, formId) {
           {selectedForm && (
             <div className="space-y-4">
               <div className="relative">
-                <pre className="bg-muted p-4 rounded-lg text-xs overflow-x-auto max-h-64">
-                  {getEmbedCode(selectedForm)}
-                </pre>
+                <ScrollArea className="h-64 w-full rounded-lg border">
+                  <pre className="bg-muted p-4 text-xs whitespace-pre-wrap break-words">
+                    {getEmbedCode(selectedForm)}
+                  </pre>
+                </ScrollArea>
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="absolute top-2 right-2"
+                  className="absolute top-2 right-4"
                   onClick={() => copyToClipboard(getEmbedCode(selectedForm))}
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-4 w-4 mr-1" />
+                  Kopieren
                 </Button>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -331,6 +430,39 @@ async function esysyncSubmit(e, formId) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Formulare löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedIds.length === 1
+                ? 'Möchtest du dieses Formular wirklich löschen?'
+                : `Möchtest du ${selectedIds.length} Formulare wirklich löschen?`}
+              <br />
+              Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleDelete(selectedIds)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Löschen...
+                </>
+              ) : (
+                'Löschen'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

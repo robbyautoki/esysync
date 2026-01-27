@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { BarChart3, Mail, Users } from 'lucide-react'
 import { formatRelativeDate } from '@/lib/utils'
@@ -28,6 +29,8 @@ interface Sequence {
 
 interface SequenceTableProps {
   sequences: Sequence[]
+  selectedIds: string[]
+  onSelectionChange: (ids: string[]) => void
   onOpenAnalytics: (sequence: Sequence) => void
 }
 
@@ -37,12 +40,41 @@ const triggerLabels: Record<string, string> = {
   API_WEBHOOK: 'API/Webhook'
 }
 
-export function SequenceTable({ sequences, onOpenAnalytics }: SequenceTableProps) {
+export function SequenceTable({ sequences, selectedIds, onSelectionChange, onOpenAnalytics }: SequenceTableProps) {
+  const allSelected = sequences.length > 0 && selectedIds.length === sequences.length
+  const someSelected = selectedIds.length > 0 && selectedIds.length < sequences.length
+
+  const toggleAll = () => {
+    if (allSelected) {
+      onSelectionChange([])
+    } else {
+      onSelectionChange(sequences.map(s => s.id))
+    }
+  }
+
+  const toggleOne = (id: string) => {
+    if (selectedIds.includes(id)) {
+      onSelectionChange(selectedIds.filter(i => i !== id))
+    } else {
+      onSelectionChange([...selectedIds, id])
+    }
+  }
+
   return (
     <div className="border rounded-lg">
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-12">
+              <Checkbox
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) (el as HTMLButtonElement & { indeterminate: boolean }).indeterminate = someSelected
+                }}
+                onCheckedChange={toggleAll}
+                aria-label="Alle auswählen"
+              />
+            </TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Trigger</TableHead>
@@ -72,7 +104,7 @@ export function SequenceTable({ sequences, onOpenAnalytics }: SequenceTableProps
         <TableBody>
           {sequences.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} className="h-24 text-center">
+              <TableCell colSpan={9} className="h-24 text-center">
                 <p className="text-muted-foreground">Keine Sequenzen vorhanden</p>
               </TableCell>
             </TableRow>
@@ -81,7 +113,14 @@ export function SequenceTable({ sequences, onOpenAnalytics }: SequenceTableProps
               const emailSteps = sequence.steps.filter(s => s.type === 'EMAIL').length
 
               return (
-                <TableRow key={sequence.id}>
+                <TableRow key={sequence.id} data-state={selectedIds.includes(sequence.id) ? 'selected' : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.includes(sequence.id)}
+                      onCheckedChange={() => toggleOne(sequence.id)}
+                      aria-label={`${sequence.name} auswählen`}
+                    />
+                  </TableCell>
                   <TableCell className="font-medium">
                     <Link
                       href={`/sequences/${sequence.id}`}

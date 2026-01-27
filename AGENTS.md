@@ -86,3 +86,20 @@ Haupt-Entitäten: Lead, Sequence, SequenceStep, SequenceState, Event, Settings
 - Keine console.log in Production Code
 - Keine unbenutzten Imports
 - Keine any Types (außer bei externen APIs)
+
+## Wichtige Dateien
+
+- `src/app/api/cron/process-sequences/route.ts` - Haupt-Email-Versand
+- `src/lib/warmup.ts` - Warmup-Limits
+- `src/lib/resend.ts` - Resend Integration
+- `prisma/schema.prisma` - Datenbank-Schema
+
+## Häufige Tasks
+
+- Neuer API Endpoint: `force-dynamic` bei PUT/DELETE
+- Neue Seite: (dashboard) oder (public) Route Group?
+- Token in URLs: IMMER base64url, nie base64
+
+## Projekt-Wissen
+
+Siehe `.factory/memories.md` für Architektur-Entscheidungen und bekannte Issues.

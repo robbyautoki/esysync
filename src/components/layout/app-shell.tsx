@@ -27,8 +27,9 @@ const navigation = [
   { name: 'Formulare', href: '/forms', icon: FileText, description: 'Anmeldeformulare erstellen' },
   { name: 'Abmeldungen', href: '/unsubscribes', icon: UserMinus, description: 'Abmeldungen und Feedback' },
   { name: 'EsySync', href: '/esysync', icon: Database, description: 'User aus EsySync importieren' },
-  { name: 'Einstellungen', href: '/settings', icon: Settings, description: 'App konfigurieren' },
 ]
+
+const settingsItem = { name: 'Einstellungen', href: '/settings', icon: Settings, description: 'App konfigurieren' }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -97,19 +98,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <div className="absolute bottom-4 left-4 right-4">
-            <div className="p-4 rounded-lg bg-muted/50 text-sm">
-              <p className="text-muted-foreground">
-                Powered by{' '}
-                <a 
-                  href="https://resend.com" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-foreground hover:underline"
-                >
-                  Resend
-                </a>
-              </p>
+          {/* Bottom section with settings */}
+          <div className="absolute bottom-4 left-4 right-4 space-y-3">
+            <div className="border-t pt-3">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={settingsItem.href}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                      pathname === settingsItem.href || pathname.startsWith(settingsItem.href)
+                        ? "bg-primary text-primary-foreground" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <settingsItem.icon className="w-4 h-4" />
+                    {settingsItem.name}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {settingsItem.description}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="px-3 py-2 text-xs text-muted-foreground">
+              Powered by{' '}
+              <a 
+                href="https://resend.com" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-foreground hover:underline"
+              >
+                Resend
+              </a>
             </div>
           </div>
         </aside>

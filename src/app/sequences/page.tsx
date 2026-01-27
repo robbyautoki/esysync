@@ -4,26 +4,18 @@ import { db } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Plus, Mail, Play, Pause, MoreHorizontal, Trash2, Edit, Users } from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { formatRelativeDate } from '@/lib/utils'
-import { SequenceActions } from '@/components/sequences/sequence-actions'
+import { Plus, Mail } from 'lucide-react'
+import { SequencesPageClient } from '@/components/sequences/sequences-page-client'
 
 async function getSequences() {
   return db.sequence.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      steps: true,
+      steps: {
+        select: { type: true }
+      },
       _count: {
         select: { states: true }
       }
@@ -31,27 +23,14 @@ async function getSequences() {
   })
 }
 
-const triggerLabels: Record<string, string> = {
-  ON_IMPORT: 'Bei Import',
-  MANUAL: 'Manuell',
-  API_WEBHOOK: 'API/Webhook'
-}
-
 function SequencesLoading() {
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {[...Array(3)].map((_, i) => (
-        <Card key={i}>
-          <CardHeader>
-            <Skeleton className="h-5 w-32" />
-            <Skeleton className="h-4 w-24" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-4 w-full mb-2" />
-            <Skeleton className="h-4 w-3/4" />
-          </CardContent>
-        </Card>
-      ))}
+    <div className="border rounded-lg">
+      <div className="p-4 space-y-3">
+        {[...Array(5)].map((_, i) => (
+          <Skeleton key={i} className="h-14 w-full" />
+        ))}
+      </div>
     </div>
   )
 }
@@ -85,73 +64,7 @@ async function SequencesList() {
     return <EmptyState />
   }
 
-  return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {sequences.map((sequence) => {
-        const emailSteps = sequence.steps.filter(s => s.type === 'EMAIL').length
-        
-        return (
-          <Card key={sequence.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle className="text-lg">
-                    <Link href={`/sequences/${sequence.id}`} className="hover:underline">
-                      {sequence.name}
-                    </Link>
-                  </CardTitle>
-                  <CardDescription className="flex items-center gap-2">
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Badge variant={sequence.isActive ? 'success' : 'secondary'}>
-                          {sequence.isActive ? 'Aktiv' : 'Inaktiv'}
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {sequence.isActive 
-                          ? 'Neue Leads durchlaufen diese Sequenz' 
-                          : 'Sequenz ist pausiert'}
-                      </TooltipContent>
-                    </Tooltip>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <Badge variant="outline">{triggerLabels[sequence.trigger]}</Badge>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        Trigger-Typ: Wann wird die Sequenz gestartet
-                      </TooltipContent>
-                    </Tooltip>
-                  </CardDescription>
-                </div>
-                <SequenceActions sequence={sequence} />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <Mail className="h-4 w-4" />
-                    {emailSteps} E-Mail{emailSteps !== 1 ? 's' : ''}
-                  </TooltipTrigger>
-                  <TooltipContent>Anzahl der E-Mail-Steps in dieser Sequenz</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    {sequence._count.states} Lead{sequence._count.states !== 1 ? 's' : ''}
-                  </TooltipTrigger>
-                  <TooltipContent>Anzahl der Leads in dieser Sequenz</TooltipContent>
-                </Tooltip>
-              </div>
-              <p className="text-xs text-muted-foreground mt-3">
-                Erstellt {formatRelativeDate(sequence.createdAt)}
-              </p>
-            </CardContent>
-          </Card>
-        )
-      })}
-    </div>
-  )
+  return <SequencesPageClient sequences={sequences} />
 }
 
 export default function SequencesPage() {

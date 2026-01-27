@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   FileText,
-  Database
+  Database,
+  UserMinus
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Leads', href: '/leads', icon: Users, description: 'Kontakte verwalten' },
   { name: 'Sequenzen', href: '/sequences', icon: Mail, description: 'E-Mail-Sequenzen erstellen' },
   { name: 'Formulare', href: '/forms', icon: FileText, description: 'Anmeldeformulare erstellen' },
+  { name: 'Abmeldungen', href: '/unsubscribes', icon: UserMinus, description: 'Abmeldungen und Feedback' },
   { name: 'EsySync', href: '/esysync', icon: Database, description: 'User aus EsySync importieren' },
   { name: 'Einstellungen', href: '/settings', icon: Settings, description: 'App konfigurieren' },
 ]
@@ -194,6 +196,7 @@ function getBreadcrumbLabel(segment: string): string {
     leads: 'Leads',
     sequences: 'Sequenzen',
     settings: 'Einstellungen',
+    unsubscribes: 'Abmeldungen',
     new: 'Neu',
   }
   return labels[segment] || segment

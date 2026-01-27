@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { token } = body
+    const { token, feedbackReason, feedbackText } = body
 
     if (!token) {
       return NextResponse.json(
@@ -47,7 +47,9 @@ export async function POST(request: NextRequest) {
         leadId,
         type: 'UNSUBSCRIBED',
         metadata: {
-          reason: 'user_request'
+          source: 'user_request',
+          reason: feedbackReason || null,
+          feedbackText: feedbackText || null
         }
       }
     })

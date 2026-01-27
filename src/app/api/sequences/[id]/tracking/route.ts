@@ -26,6 +26,8 @@ export async function GET(
     const sentLeads = new Set<string>()
     const openedLeads = new Set<string>()
     const clickedLeads = new Set<string>()
+    const bouncedLeads = new Set<string>()
+    const unsubscribedLeads = new Set<string>()
     const recentClicks: Array<{
       leadId: string
       leadName: string
@@ -52,11 +54,19 @@ export async function GET(
           })
         }
       }
+      if (event.type === 'EMAIL_BOUNCED') {
+        bouncedLeads.add(event.leadId)
+      }
+      if (event.type === 'UNSUBSCRIBED') {
+        unsubscribedLeads.add(event.leadId)
+      }
     }
 
     const totalSent = sentLeads.size
     const uniqueOpens = openedLeads.size
     const uniqueClicks = clickedLeads.size
+    const bounces = bouncedLeads.size
+    const unsubscribes = unsubscribedLeads.size
 
     const openRate = totalSent > 0 ? Math.round((uniqueOpens / totalSent) * 100) : 0
     const clickRate = uniqueOpens > 0 ? Math.round((uniqueClicks / uniqueOpens) * 100) : 0
@@ -67,6 +77,8 @@ export async function GET(
       uniqueClicks,
       openRate,
       clickRate,
+      bounces,
+      unsubscribes,
       recentClicks
     })
   } catch (error) {

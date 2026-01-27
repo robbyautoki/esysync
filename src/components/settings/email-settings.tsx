@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,8 +14,10 @@ import {
   Send,
   Image as ImageIcon,
   X,
-  FileText
+  FileText,
+  Eye
 } from 'lucide-react'
+import { generatePreviewDocument } from '@/lib/email-footer-preview'
 import {
   Select,
   SelectContent,
@@ -285,8 +287,13 @@ export function EmailSettingsTab() {
     )
   }
 
+  // Memoized Preview-HTML um unnötige Re-Renders zu vermeiden
+  const previewHtml = useMemo(() => generatePreviewDocument(settings), [settings])
+
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col lg:flex-row gap-6">
+      {/* Linke Seite: Formular-Cards */}
+      <div className="flex-1 space-y-4">
       {/* Template-Auswahl */}
       <Card>
         <CardHeader>
@@ -589,6 +596,37 @@ export function EmailSettingsTab() {
           ) : null}
           Einstellungen speichern
         </Button>
+      </div>
+      </div>
+
+      {/* Rechte Seite: Live-Vorschau (sticky auf Desktop) */}
+      <div className="lg:w-[400px] lg:flex-shrink-0">
+        <div className="lg:sticky lg:top-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Eye className="h-4 w-4" />
+                Live-Vorschau
+              </CardTitle>
+              <CardDescription>
+                So sieht dein Footer in E-Mails aus
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-lg overflow-hidden bg-white">
+                <iframe
+                  srcDoc={previewHtml}
+                  className="w-full h-[400px] border-0"
+                  title="Footer-Vorschau"
+                  sandbox="allow-same-origin"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Abmelde-Link ist in der Vorschau deaktiviert
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )

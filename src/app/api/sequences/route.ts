@@ -4,7 +4,9 @@ import { z } from 'zod'
 
 const createSequenceSchema = z.object({
   name: z.string().min(1, 'Name ist erforderlich'),
-  trigger: z.enum(['ON_IMPORT', 'MANUAL', 'API_WEBHOOK'])
+  trigger: z.enum(['ON_IMPORT', 'MANUAL', 'API_WEBHOOK']),
+  scheduledStartAt: z.string().datetime().optional().nullable()
+    .transform(val => val ? new Date(val) : null)
 })
 
 export async function GET() {
@@ -31,7 +33,8 @@ export async function POST(request: NextRequest) {
     const sequence = await db.sequence.create({
       data: {
         name: data.name,
-        trigger: data.trigger
+        trigger: data.trigger,
+        scheduledStartAt: data.scheduledStartAt
       }
     })
 

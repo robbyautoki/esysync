@@ -81,11 +81,18 @@ export async function GET(request: NextRequest) {
     }
     
     // Find all sequence states that are due
+    // Nur Sequenzen verarbeiten, deren Startdatum erreicht ist (oder kein Startdatum haben)
     const dueStates = await db.sequenceState.findMany({
       where: {
         status: 'ACTIVE',
         nextRunAt: {
           lte: now
+        },
+        sequence: {
+          OR: [
+            { scheduledStartAt: null },      // Kein Startdatum = sofort
+            { scheduledStartAt: { lte: now } } // Startdatum erreicht
+          ]
         }
       },
       include: {

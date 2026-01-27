@@ -28,15 +28,16 @@ enum LeadStatus {
 }
 
 model Sequence {
-  id          String      @id @default(cuid())
-  name        String
-  trigger     TriggerType
-  isActive    Boolean     @default(false)
-  trackOpens  Boolean     @default(true)
-  trackClicks Boolean     @default(true)
-  sendTime    String?     // e.g. "09:00" or null for immediate
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id               String      @id @default(cuid())
+  name             String
+  trigger          TriggerType
+  isActive         Boolean     @default(false)
+  trackOpens       Boolean     @default(true)
+  trackClicks      Boolean     @default(true)
+  sendTime         String?     // e.g. "09:00" or null for immediate
+  scheduledStartAt DateTime?   // Optionales Startdatum für die Sequenz
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   steps  SequenceStep[]
   states SequenceState[]

@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { format } from 'date-fns'
+import { de } from 'date-fns/locale'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,8 +16,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Info } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { Info, CalendarIcon, X } from 'lucide-react'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 const triggers = [
   { 
@@ -40,6 +45,8 @@ export default function NewSequencePage() {
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState('')
   const [trigger, setTrigger] = useState('MANUAL')
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined)
+  const [scheduledTime, setScheduledTime] = useState('09:00')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,10 +59,19 @@ export default function NewSequencePage() {
     setLoading(true)
 
     try {
+      // Kombiniere Datum und Zeit zu ISO String
+      let scheduledStartAt: string | null = null
+      if (scheduledDate) {
+        const [hours, minutes] = scheduledTime.split(':').map(Number)
+        const combined = new Date(scheduledDate)
+        combined.setHours(hours, minutes, 0, 0)
+        scheduledStartAt = combined.toISOString()
+      }
+
       const res = await fetch('/api/sequences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, trigger })
+        body: JSON.stringify({ name, trigger, scheduledStartAt })
       })
 
       if (!res.ok) {
@@ -128,6 +144,71 @@ export default function NewSequencePage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label>Startdatum (optional)</Label>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    Wenn gesetzt, werden E-Mails erst ab diesem Datum versendet.
+                    Ohne Startdatum startet die Sequenz sofort.
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-[200px] justify-start text-left font-normal",
+                        !scheduledDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {scheduledDate ? format(scheduledDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={scheduledDate}
+                      onSelect={setScheduledDate}
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                      locale={de}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {scheduledDate && (
+                  <>
+                    <Input
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      className="w-[120px]"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setScheduledDate(undefined)}
+                      title="Startdatum entfernen"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+              {scheduledDate && (
+                <p className="text-xs text-muted-foreground">
+                  E-Mails werden ab {format(scheduledDate, 'dd.MM.yyyy', { locale: de })} um {scheduledTime} Uhr versendet
+                </p>
+              )}
             </div>
 
             <div className="flex gap-3">

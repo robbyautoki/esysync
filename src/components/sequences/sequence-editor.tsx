@@ -40,6 +40,7 @@ import { StepCard } from './step-card'
 import { EmailStepEditor } from './email-step-editor'
 import { SequenceLeads } from './sequence-leads'
 import { SequenceTracking } from './sequence-tracking'
+import { SequencePreview } from './sequence-preview'
 
 interface Step {
   id: string
@@ -362,6 +363,9 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
 
       {/* Leads in Sequence */}
       <SequenceLeads sequenceId={sequence.id} />
+
+      {/* Vorschau */}
+      <SequencePreview sequenceId={sequence.id} />
 
       {/* Tracking */}
       <SequenceTracking 

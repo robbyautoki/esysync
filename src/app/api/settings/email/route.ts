@@ -3,6 +3,10 @@ import { db } from '@/lib/db'
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 
+// Verhindert Next.js Caching - behebt 405 Error bei PUT in Production
+// Siehe: https://github.com/vercel/next.js/issues/66647
+export const dynamic = "force-dynamic"
+
 const emailSettingsSchema = z.object({
   footerLogo: z.string().nullable().optional(),
   footerText: z.string().nullable().optional(),

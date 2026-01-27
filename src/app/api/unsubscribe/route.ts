@@ -16,7 +16,14 @@ export async function POST(request: NextRequest) {
     // Decode token (base64 encoded leadId)
     let leadId: string
     try {
+      // Versuche zuerst base64url (neue Tokens)
       leadId = Buffer.from(token, 'base64url').toString('utf-8')
+      
+      // Prüfe ob es ein gültiges CUID ist (startet mit 'c')
+      if (!leadId.startsWith('c')) {
+        // Fallback zu base64 (alte Tokens)
+        leadId = Buffer.from(token, 'base64').toString('utf-8')
+      }
     } catch {
       return NextResponse.json(
         { error: 'Ungültiger Token' },

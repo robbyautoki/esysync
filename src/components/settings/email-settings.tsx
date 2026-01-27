@@ -267,6 +267,12 @@ export function EmailSettingsTab() {
     }
   }
 
+  // Memoized Preview-HTML - MUSS vor early returns stehen (React Hook Rules)
+  const previewHtml = useMemo(
+    () => (settings ? generatePreviewDocument(settings) : ''),
+    [settings]
+  )
+
   if (loading) {
     return (
       <Card>
@@ -286,9 +292,6 @@ export function EmailSettingsTab() {
       </Card>
     )
   }
-
-  // Memoized Preview-HTML um unnötige Re-Renders zu vermeiden
-  const previewHtml = useMemo(() => generatePreviewDocument(settings), [settings])
 
   return (
     <div className="flex flex-col lg:flex-row gap-6">

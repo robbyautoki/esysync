@@ -22,8 +22,16 @@ import {
   Send, 
   Loader2,
   FileText,
-  Sparkles
+  Sparkles,
+  ShieldCheck,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Bot
 } from 'lucide-react'
+import { tiptapToPlainText, SpamCheckResult, SpamIssue } from '@/lib/spam-check'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { TiptapEditor } from './tiptap-editor'
 import { emailTemplates, EmailTemplate } from '@/lib/email-templates'
@@ -45,6 +53,21 @@ interface EmailStepEditorProps {
   onCancel: () => void
 }
 
+interface SpamCheckApiResult {
+  local: SpamCheckResult
+  postmark?: {
+    score: number
+    rules: Array<{ score: number; description: string }>
+  }
+  openai?: {
+    analysis: string
+  }
+  overall: {
+    score: number
+    level: 'good' | 'warning' | 'bad'
+  }
+}
+
 const variables = [
   { key: 'firstName', label: 'Vorname', example: 'Max' },
   { key: 'email', label: 'E-Mail', example: 'max@beispiel.de' },
@@ -61,6 +84,9 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
   const [editorInstance, setEditorInstance] = useState<any>(null)
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
+  const [spamCheckOpen, setSpamCheckOpen] = useState(false)
+  const [spamCheckLoading, setSpamCheckLoading] = useState(false)
+  const [spamCheckResult, setSpamCheckResult] = useState<SpamCheckApiResult | null>(null)
 
   const applyTemplate = (template: EmailTemplate) => {
     // Check if there's existing content
@@ -147,6 +173,51 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
     }
   }
 
+  const handleSpamCheck = async () => {
+    if (!subject.trim() && !content) {
+      toast.error('Bitte Betreff oder Inhalt eingeben')
+      return
+    }
+
+    setSpamCheckLoading(true)
+    setSpamCheckOpen(true)
+    setSpamCheckResult(null)
+
+    try {
+      const res = await fetch('/api/spam-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, content })
+      })
+
+      if (!res.ok) throw new Error('Spam-Check fehlgeschlagen')
+
+      const result = await res.json()
+      setSpamCheckResult(result)
+    } catch {
+      toast.error('Spam-Check fehlgeschlagen')
+      setSpamCheckOpen(false)
+    } finally {
+      setSpamCheckLoading(false)
+    }
+  }
+
+  const getScoreColor = (level: 'good' | 'warning' | 'bad') => {
+    switch (level) {
+      case 'good': return 'text-green-600 bg-green-50 border-green-200'
+      case 'warning': return 'text-yellow-600 bg-yellow-50 border-yellow-200'
+      case 'bad': return 'text-red-600 bg-red-50 border-red-200'
+    }
+  }
+
+  const getScoreIcon = (level: 'good' | 'warning' | 'bad') => {
+    switch (level) {
+      case 'good': return <CheckCircle2 className="h-5 w-5" />
+      case 'warning': return <AlertTriangle className="h-5 w-5" />
+      case 'bad': return <XCircle className="h-5 w-5" />
+    }
+  }
+
   // Generate preview HTML with styled buttons
   const getPreviewHtml = useCallback(() => {
     if (!editorInstance) return ''
@@ -193,6 +264,20 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
         </div>
 
         <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={handleSpamCheck} disabled={spamCheckLoading}>
+                {spamCheckLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                )}
+                Spam-Check
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>E-Mail auf Spam-Risiko prüfen</TooltipContent>
+          </Tooltip>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" onClick={() => setTestEmailOpen(true)}>
@@ -408,6 +493,122 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
             </Button>
             <Button onClick={() => selectedTemplate && confirmApplyTemplate(selectedTemplate)}>
               Template anwenden
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Spam Check Dialog */}
+      <Dialog open={spamCheckOpen} onOpenChange={setSpamCheckOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Spam-Check Ergebnis
+            </DialogTitle>
+          </DialogHeader>
+          
+          {spamCheckLoading ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Analysiere E-Mail...</p>
+            </div>
+          ) : spamCheckResult ? (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-4 pr-4">
+                {/* Overall Score */}
+                <div className={`flex items-center justify-between p-4 rounded-lg border ${getScoreColor(spamCheckResult.overall.level)}`}>
+                  <div className="flex items-center gap-3">
+                    {getScoreIcon(spamCheckResult.overall.level)}
+                    <div>
+                      <p className="font-semibold">Gesamt-Score</p>
+                      <p className="text-sm opacity-80">
+                        {spamCheckResult.overall.level === 'good' && 'Sieht gut aus!'}
+                        {spamCheckResult.overall.level === 'warning' && 'Einige Verbesserungen möglich'}
+                        {spamCheckResult.overall.level === 'bad' && 'Hohes Spam-Risiko'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-2xl font-bold">
+                    {spamCheckResult.overall.score}/10
+                  </div>
+                </div>
+
+                {/* Local Analysis */}
+                {spamCheckResult.local.issues.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                      Lokale Analyse
+                    </h4>
+                    <div className="space-y-1">
+                      {spamCheckResult.local.issues.map((issue, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm p-2 bg-muted/50 rounded">
+                          <Badge variant="outline" className="shrink-0">+{issue.points}</Badge>
+                          <span>{issue.message}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Postmark Results */}
+                {spamCheckResult.postmark && (
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                      SpamAssassin (Postmark)
+                      <Badge variant="secondary">Score: {spamCheckResult.postmark.score.toFixed(1)}</Badge>
+                    </h4>
+                    {spamCheckResult.postmark.rules.length > 0 ? (
+                      <div className="space-y-1">
+                        {spamCheckResult.postmark.rules.map((rule, i) => (
+                          <div key={i} className="flex items-start gap-2 text-sm p-2 bg-muted/50 rounded">
+                            <Badge variant="outline" className="shrink-0">+{rule.score.toFixed(1)}</Badge>
+                            <span className="text-muted-foreground">{rule.description}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground p-2 bg-green-50 rounded border border-green-200">
+                        Keine SpamAssassin-Regeln ausgelöst
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* OpenAI Analysis */}
+                {spamCheckResult.openai && (
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm flex items-center gap-2">
+                      <Bot className="h-4 w-4 text-muted-foreground" />
+                      KI-Analyse
+                    </h4>
+                    <div className="text-sm p-3 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
+                      {spamCheckResult.openai.analysis}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tips wenn Score schlecht */}
+                {spamCheckResult.overall.level === 'bad' && (
+                  <div className="text-sm p-3 bg-amber-50 dark:bg-amber-950 rounded border border-amber-200 dark:border-amber-800">
+                    <p className="font-medium mb-1">Tipps zur Verbesserung:</p>
+                    <ul className="list-disc list-inside space-y-1 text-muted-foreground">
+                      <li>Vermeide Wörter wie GRATIS, KOSTENLOS, JETZT</li>
+                      <li>Weniger Ausrufezeichen und Großbuchstaben</li>
+                      <li>Personalisiere den Betreff mit {"{{firstName}}"}</li>
+                      <li>Halte den Text natürlich und persönlich</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          ) : null}
+
+          <DialogFooter>
+            <Button onClick={() => setSpamCheckOpen(false)}>
+              Schließen
             </Button>
           </DialogFooter>
         </DialogContent>

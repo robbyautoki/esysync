@@ -8,6 +8,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/public(.*)',
   '/api/track(.*)',
   '/api/cron(.*)',
+  '/api/settings/(.*)',  // Email-Settings API - erlaubt OPTIONS Preflight + PUT
   '/unsubscribe(.*)',
   '/forms/(.*)/embed',
 ])

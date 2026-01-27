@@ -8,13 +8,14 @@ const importSchema = z.object({
     firstName: z.string().min(1),
     customFields: z.record(z.string()).optional()
   })),
-  sequenceId: z.string().optional()
+  sequenceId: z.string().optional(),
+  segmentId: z.string().optional().nullable()
 })
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { leads, sequenceId } = importSchema.parse(body)
+    const { leads, sequenceId, segmentId } = importSchema.parse(body)
 
     // Get existing emails and check their status
     const existingLeads = await db.lead.findMany({
@@ -55,6 +56,16 @@ export async function POST(request: NextRequest) {
               leadId: createdLead.id,
               sequenceId,
               status: 'ACTIVE'
+            }
+          })
+        }
+
+        // Add to segment if specified
+        if (segmentId) {
+          await db.leadSegment.create({
+            data: {
+              leadId: createdLead.id,
+              segmentId
             }
           })
         }

@@ -6,7 +6,8 @@ const createLeadSchema = z.object({
   email: z.string().email('Ungültige E-Mail-Adresse'),
   firstName: z.string().min(1, 'Vorname ist erforderlich'),
   customFields: z.record(z.string()).optional(),
-  sequenceId: z.string().optional()
+  sequenceId: z.string().optional(),
+  segmentId: z.string().optional().nullable()
 })
 
 export async function GET(request: NextRequest) {
@@ -106,6 +107,22 @@ export async function POST(request: NextRequest) {
             leadId: lead.id,
             sequenceId: data.sequenceId,
             status: 'ACTIVE'
+          }
+        })
+      }
+    }
+
+    // If segmentId provided, add to segment
+    if (data.segmentId) {
+      const segment = await db.segment.findUnique({
+        where: { id: data.segmentId }
+      })
+
+      if (segment) {
+        await db.leadSegment.create({
+          data: {
+            leadId: lead.id,
+            segmentId: data.segmentId
           }
         })
       }

@@ -6,7 +6,7 @@ export async function GET() {
     const users = await getEsySyncUsers()
     
     const transformedUsers = users.map(user => ({
-      id: user.id,
+      id: user.email,  // Email als eindeutiger Identifier
       email: user.email,
       firstName: user.firstname || 'Unbekannt',
       lastName: user.lastname || '',

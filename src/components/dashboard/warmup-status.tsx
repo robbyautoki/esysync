@@ -78,7 +78,7 @@ export function WarmupStatus() {
           ) : status.enabled ? (
             <Badge variant="secondary" className="gap-1">
               <Clock className="h-3 w-3" />
-              Tag {status.currentDay}/{status.totalDays}
+              {status.currentDay}/{status.totalDays} Sende-Tage
             </Badge>
           ) : (
             <Badge variant="outline">Deaktiviert</Badge>
@@ -128,10 +128,10 @@ export function WarmupStatus() {
             {status.nextLimitIncrease && (
               <p className="text-xs text-muted-foreground">
                 {status.nextLimitIncrease.newLimit === -1 ? (
-                  <>In {status.nextLimitIncrease.inDays} Tagen: Unbegrenzt</>
+                  <>Noch {status.nextLimitIncrease.inDays} Sende-Tage bis: Unbegrenzt</>
                 ) : (
                   <>
-                    In {status.nextLimitIncrease.inDays} Tagen: {status.nextLimitIncrease.newLimit}/Tag
+                    Noch {status.nextLimitIncrease.inDays} Sende-Tage bis: {status.nextLimitIncrease.newLimit}/Tag
                   </>
                 )}
               </p>

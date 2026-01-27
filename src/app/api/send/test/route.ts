@@ -48,7 +48,22 @@ function contentToHtml(content: any): string {
       
       case 'hardBreak':
         return '<br>'
-      
+
+      case 'image':
+        const src = node.attrs?.src || ''
+        const alt = node.attrs?.alt || ''
+        return `<img src="${src}" alt="${alt}" style="max-width: 100%; height: auto; display: block; margin: 16px 0; border-radius: 8px;" />`
+
+      case 'imageResize':
+        // Resize-Plugin speichert Bilder mit containerStyle für Größe
+        const imgSrc = node.attrs?.src || ''
+        const imgAlt = node.attrs?.alt || ''
+        const containerStyle = node.attrs?.containerStyle || ''
+        const widthMatch = containerStyle.match(/width:\s*(\d+)px/)
+        const width = widthMatch ? widthMatch[1] : null
+        const widthStyle = width ? `width: ${width}px; max-width: 100%;` : 'max-width: 100%;'
+        return `<img src="${imgSrc}" alt="${imgAlt}" style="${widthStyle} height: auto; display: block; margin: 16px 0; border-radius: 8px;" />`
+
       default:
         if (node.content) {
           return node.content.map(renderNode).join('')

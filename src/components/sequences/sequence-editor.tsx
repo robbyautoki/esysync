@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { format } from 'date-fns'
+import { de } from 'date-fns/locale'
 import {
   DndContext,
   closestCenter,
@@ -20,19 +22,25 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { 
-  Plus, 
-  Mail, 
-  Clock, 
-  Save, 
-  Play, 
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
+import { cn } from '@/lib/utils'
+import {
+  Plus,
+  Mail,
+  Clock,
+  Save,
+  Play,
   Pause,
   ArrowLeft,
   Check,
   Loader2,
-  Info
+  Info,
+  CalendarIcon,
+  X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
@@ -60,6 +68,7 @@ interface Sequence {
   trackOpens: boolean
   trackClicks: boolean
   sendTime: string | null
+  scheduledStartAt: string | null
   steps: Step[]
   _count: { states: number }
 }
@@ -72,6 +81,14 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(true)
   const [editingStep, setEditingStep] = useState<Step | null>(null)
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(
+    initialSequence.scheduledStartAt ? new Date(initialSequence.scheduledStartAt) : undefined
+  )
+  const [scheduledTime, setScheduledTime] = useState(
+    initialSequence.scheduledStartAt
+      ? format(new Date(initialSequence.scheduledStartAt), 'HH:mm')
+      : '09:00'
+  )
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -89,7 +106,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
     }, 2000)
 
     return () => clearTimeout(timeout)
-  }, [steps, name, saved])
+  }, [steps, name, saved, scheduledDate, scheduledTime])
 
   const markUnsaved = useCallback(() => {
     setSaved(false)
@@ -115,10 +132,19 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
   const handleSave = async () => {
     setSaving(true)
     try {
+      // Kombiniere Datum und Zeit zu ISO String
+      let scheduledStartAt: string | null = null
+      if (scheduledDate) {
+        const [hours, minutes] = scheduledTime.split(':').map(Number)
+        const combined = new Date(scheduledDate)
+        combined.setHours(hours, minutes, 0, 0)
+        scheduledStartAt = combined.toISOString()
+      }
+
       const res = await fetch(`/api/sequences/${sequence.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, steps })
+        body: JSON.stringify({ name, steps, scheduledStartAt })
       })
 
       if (!res.ok) throw new Error('Speichern fehlgeschlagen')
@@ -366,6 +392,83 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
 
       {/* Vorschau */}
       <SequencePreview sequenceId={sequence.id} />
+
+      {/* Startdatum */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base">Startdatum</CardTitle>
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                Wenn gesetzt, werden E-Mails erst ab diesem Datum versendet.
+                Ohne Startdatum startet die Sequenz sofort.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "w-[200px] justify-start text-left font-normal",
+                      !scheduledDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {scheduledDate ? format(scheduledDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={scheduledDate}
+                    onSelect={(date) => { setScheduledDate(date); markUnsaved() }}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    locale={de}
+                  />
+                </PopoverContent>
+              </Popover>
+              {scheduledDate && (
+                <>
+                  <Input
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => { setScheduledTime(e.target.value); markUnsaved() }}
+                    className="w-[120px]"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => { setScheduledDate(undefined); markUnsaved() }}
+                    title="Startdatum entfernen"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
+            {scheduledDate && (
+              <p className="text-sm text-muted-foreground">
+                E-Mails werden ab {format(scheduledDate, 'dd.MM.yyyy', { locale: de })} um {scheduledTime} Uhr versendet
+              </p>
+            )}
+            {!scheduledDate && (
+              <p className="text-sm text-muted-foreground">
+                Sequenz startet sofort (kein Startdatum gesetzt)
+              </p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Tracking */}
       <SequenceTracking 

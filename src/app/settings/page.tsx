@@ -9,8 +9,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Info, Copy, Check, ExternalLink, Flame, RotateCcw, Loader2, Key, RefreshCw, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Info, Copy, Check, ExternalLink, Flame, RotateCcw, Loader2, Key, RefreshCw, Trash2, Eye, EyeOff, Mail } from 'lucide-react'
 import { toast } from 'sonner'
+import { EmailSettingsTab } from '@/components/settings/email-settings'
 
 interface WarmupStatus {
   enabled: boolean
@@ -75,7 +76,7 @@ export default function SettingsPage() {
   }
 
   const resetWarmup = async () => {
-    if (!confirm('Warm-up wirklich zurücksetzen? Der 42-Tage-Zyklus beginnt von vorne.')) return
+    if (!confirm('Warm-up wirklich zurücksetzen? Die Zählung der aktiven Sende-Tage beginnt von vorne.')) return
     
     setWarmupUpdating(true)
     try {
@@ -153,6 +154,10 @@ export default function SettingsPage() {
             <Flame className="h-4 w-4 mr-1" />
             Warm-up
           </TabsTrigger>
+          <TabsTrigger value="email">
+            <Mail className="h-4 w-4 mr-1" />
+            E-Mail Design
+          </TabsTrigger>
           <TabsTrigger value="api">API</TabsTrigger>
           <TabsTrigger value="resend">Resend</TabsTrigger>
           <TabsTrigger value="tracking">Tracking</TabsTrigger>
@@ -189,7 +194,7 @@ export default function SettingsPage() {
                 <>
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="p-4 border rounded-lg">
-                      <p className="text-sm text-muted-foreground">Aktueller Tag</p>
+                      <p className="text-sm text-muted-foreground">Aktive Sende-Tage</p>
                       <p className="text-2xl font-bold">
                         {warmup.isComplete ? '✓' : `${warmup.currentDay}/${warmup.totalDays}`}
                       </p>
@@ -207,7 +212,10 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="p-4 border rounded-lg bg-muted/50">
-                    <h4 className="font-medium mb-3">Warm-up Schedule</h4>
+                    <h4 className="font-medium mb-1">Warm-up Schedule</h4>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Basiert auf aktiven Sende-Tagen (nur Tage mit E-Mail-Versand zählen)
+                    </p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
                       <div className={warmup.currentDay <= 7 ? 'font-medium text-primary' : 'text-muted-foreground'}>
                         Tag 1-7: 10/Tag
@@ -239,7 +247,7 @@ export default function SettingsPage() {
                     <div>
                       <p className="text-sm font-medium">Warm-up zurücksetzen</p>
                       <p className="text-xs text-muted-foreground">
-                        Startet den 42-Tage-Zyklus von vorne
+                        Setzt die Zählung aktiver Sende-Tage auf 0 zurück
                       </p>
                     </div>
                     <Button 
@@ -262,6 +270,10 @@ export default function SettingsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="email" className="space-y-4">
+          <EmailSettingsTab />
         </TabsContent>
 
         <TabsContent value="api" className="space-y-4">

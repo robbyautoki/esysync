@@ -48,7 +48,7 @@ interface EmailStepEditorProps {
 const variables = [
   { key: 'firstName', label: 'Vorname', example: 'Max' },
   { key: 'email', label: 'E-Mail', example: 'max@beispiel.de' },
-  { key: 'unsubscribe_link', label: 'Abmelde-Link', example: '[Link]' },
+  // unsubscribe_link wird automatisch im Footer eingefügt - nicht manuell nötig
 ]
 
 export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailStepEditorProps) {

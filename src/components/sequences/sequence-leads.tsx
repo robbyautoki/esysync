@@ -5,9 +5,18 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Trash2, Users, RotateCcw } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Loader2, Trash2, Users, RotateCcw, Plus, Tag } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { SegmentSelect } from '@/components/segments/segment-select'
 
 interface Lead {
   id: string
@@ -31,6 +40,9 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [removing, setRemoving] = useState(false)
   const [resettingId, setResettingId] = useState<string | null>(null)
+  const [addSegmentOpen, setAddSegmentOpen] = useState(false)
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null)
+  const [addingSegment, setAddingSegment] = useState(false)
 
   const fetchLeads = async () => {
     try {
@@ -111,6 +123,31 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
     }
   }
 
+  const addSegmentLeads = async () => {
+    if (!selectedSegmentId) return
+
+    setAddingSegment(true)
+    try {
+      const res = await fetch(`/api/sequences/${sequenceId}/leads/from-segment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ segmentId: selectedSegmentId })
+      })
+
+      if (!res.ok) throw new Error('Fehler beim Hinzufügen')
+
+      const result = await res.json()
+      toast.success(`${result.added} Lead(s) hinzugefügt${result.skipped > 0 ? `, ${result.skipped} bereits in Sequenz` : ''}`)
+      setAddSegmentOpen(false)
+      setSelectedSegmentId(null)
+      fetchLeads()
+    } catch {
+      toast.error('Fehler beim Hinzufügen der Segment-Leads')
+    } finally {
+      setAddingSegment(false)
+    }
+  }
+
   const statusLabels: Record<string, { label: string; variant: 'success' | 'secondary' | 'destructive' }> = {
     ACTIVE: { label: 'Aktiv', variant: 'success' },
     COMPLETED: { label: 'Abgeschlossen', variant: 'secondary' },
@@ -139,21 +176,31 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
             </CardTitle>
             <CardDescription>{leads.length} Lead(s)</CardDescription>
           </div>
-          {selectedIds.size > 0 && (
-            <Button 
-              variant="destructive" 
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
               size="sm"
-              onClick={removeSelected}
-              disabled={removing}
+              onClick={() => setAddSegmentOpen(true)}
             >
-              {removing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
-              )}
-              {selectedIds.size} entfernen
+              <Tag className="h-4 w-4 mr-2" />
+              Segment hinzufügen
             </Button>
-          )}
+            {selectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={removeSelected}
+                disabled={removing}
+              >
+                {removing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                {selectedIds.size} entfernen
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -229,6 +276,55 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
           </div>
         )}
       </CardContent>
+
+      {/* Add Segment Dialog */}
+      <Dialog open={addSegmentOpen} onOpenChange={setAddSegmentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Segment-Leads hinzufügen</DialogTitle>
+            <DialogDescription>
+              Füge alle Leads eines Segments zu dieser Sequenz hinzu.
+              Leads die bereits in der Sequenz sind werden übersprungen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <SegmentSelect
+              value={selectedSegmentId}
+              onChange={setSelectedSegmentId}
+              placeholder="Segment auswählen"
+              allowCreate={false}
+              className="w-full"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAddSegmentOpen(false)
+                setSelectedSegmentId(null)
+              }}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              onClick={addSegmentLeads}
+              disabled={!selectedSegmentId || addingSegment}
+            >
+              {addingSegment ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Füge hinzu...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Leads hinzufügen
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendEmail } from '@/lib/resend'
 import { canSendEmail, logEmailSent, getWarmupStatus } from '@/lib/warmup'
+import { generateFooterHtml } from '@/lib/email-footer'
 
 // Convert TipTap JSON to HTML
 function contentToHtml(content: any): string {
@@ -43,7 +44,24 @@ function contentToHtml(content: any): string {
       
       case 'hardBreak':
         return '<br>'
-      
+
+      case 'image':
+        const src = node.attrs?.src || ''
+        const alt = node.attrs?.alt || ''
+        // Email-optimiertes Bild mit max-width und responsive Design
+        return `<img src="${src}" alt="${alt}" style="max-width: 100%; height: auto; display: block; margin: 16px 0; border-radius: 8px;" />`
+
+      case 'imageResize':
+        // Resize-Plugin speichert Bilder mit containerStyle für Größe
+        const imgSrc = node.attrs?.src || ''
+        const imgAlt = node.attrs?.alt || ''
+        // Extrahiere width aus containerStyle (z.B. "width: 104px;")
+        const containerStyle = node.attrs?.containerStyle || ''
+        const widthMatch = containerStyle.match(/width:\s*(\d+)px/)
+        const width = widthMatch ? widthMatch[1] : null
+        const widthStyle = width ? `width: ${width}px; max-width: 100%;` : 'max-width: 100%;'
+        return `<img src="${imgSrc}" alt="${imgAlt}" style="${widthStyle} height: auto; display: block; margin: 16px 0; border-radius: 8px;" />`
+
       default:
         if (node.content) {
           return node.content.map(renderNode).join('')
@@ -64,14 +82,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date()
-    
+
     // Check warmup limit
     const warmupStatus = await getWarmupStatus()
     let emailsRemainingToday = warmupStatus.remaining
-    
+
     if (warmupStatus.enabled && !warmupStatus.isComplete && warmupStatus.remaining === 0) {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'Daily warmup limit reached',
         warmup: {
           sentToday: warmupStatus.sentToday,
@@ -79,7 +97,12 @@ export async function GET(request: NextRequest) {
         }
       })
     }
-    
+
+    // Lade Email-Einstellungen für Footer
+    const emailSettings = await db.emailSettings.findUnique({
+      where: { id: 'default' }
+    })
+
     // Find all sequence states that are due
     // Nur Sequenzen verarbeiten, deren Startdatum erreicht ist (oder kein Startdatum haben)
     const dueStates = await db.sequenceState.findMany({
@@ -176,7 +199,12 @@ export async function GET(request: NextRequest) {
             subject = subject.replace(new RegExp(`{{${key}}}`, 'g'), value)
           }
 
+          // Generiere Footer aus DB-Einstellungen
+          const unsubscribeLink = `${appUrl}/unsubscribe?token=${unsubscribeToken}`
+          const footerHtml = generateFooterHtml(emailSettings, unsubscribeLink)
+
           // Wrap in email template
+          const primaryColor = emailSettings?.primaryColor || '#0070f3'
           const emailHtml = `
             <!DOCTYPE html>
             <html>
@@ -185,15 +213,12 @@ export async function GET(request: NextRequest) {
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <style>
                   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-                  a { color: #0070f3; }
+                  a { color: ${primaryColor}; }
                 </style>
               </head>
               <body>
                 ${html}
-                <hr style="margin-top: 40px; border: none; border-top: 1px solid #eee;">
-                <p style="font-size: 12px; color: #666;">
-                  <a href="${appUrl}/unsubscribe?token=${unsubscribeToken}">Abmelden</a>
-                </p>
+                ${footerHtml}
               </body>
             </html>
           `

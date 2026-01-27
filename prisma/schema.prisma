@@ -19,6 +19,7 @@ model Lead {
 
   sequenceStates SequenceState[]
   events         Event[]
+  segments       LeadSegment[]
 }
 
 enum LeadStatus {
@@ -151,4 +152,60 @@ model SignupForm {
   submissions  Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Segment {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?  // Für UI-Badge (z.B. "#3b82f6")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  leads       LeadSegment[]
+}
+
+model LeadSegment {
+  id        String   @id @default(cuid())
+  leadId    String
+  segmentId String
+  createdAt DateTime @default(now())
+
+  lead      Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  segment   Segment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, segmentId])
+  @@index([leadId])
+  @@index([segmentId])
+}
+
+model EmailSettings {
+  id              String   @id @default("default")
+  // Footer
+  footerLogo      String?  // URL zum Logo
+  footerText      String?  // z.B. "© 2024 Firma GmbH"
+  footerLinks     Json?    // [{ label: "Impressum", url: "..." }]
+  companyName     String?
+  companyAddress  String?
+  // Social Links
+  socialLinks     Json?    // { twitter: "...", linkedin: "..." }
+  // Styling
+  primaryColor    String   @default("#000000")
+  // Sender
+  senderName      String?
+  replyToEmail    String?
+  updatedAt       DateTime @updatedAt
+}
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String   @default("standard") // standard, marketing, transactional
+  thumbnail   String?  // Preview-Bild URL
+  content     Json     // TipTap JSON
+  subject     String?  // Beispiel-Betreff
+  isBuiltIn   Boolean  @default(false) // Vordefinierte Templates
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

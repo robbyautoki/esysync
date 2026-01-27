@@ -23,5 +23,11 @@ export default async function SequenceEditorPage({ params }: { params: { id: str
     notFound()
   }
 
-  return <SequenceEditor sequence={sequence} />
+  // Serialize Date objects to ISO strings for client component
+  const serializedSequence = {
+    ...sequence,
+    scheduledStartAt: sequence.scheduledStartAt?.toISOString() ?? null,
+  }
+
+  return <SequenceEditor sequence={serializedSequence} />
 }

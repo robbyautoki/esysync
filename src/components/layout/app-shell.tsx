@@ -3,10 +3,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { 
-  LayoutDashboard, 
-  Users, 
-  Mail, 
+import {
+  LayoutDashboard,
+  Users,
+  Mail,
   Settings,
   ChevronRight,
   Menu,
@@ -17,6 +17,7 @@ import {
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { UserButton } from '@clerk/nextjs'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard, description: 'Übersicht und Metriken' },
@@ -114,17 +115,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Main content */}
         <div className="lg:pl-64">
           {/* Top bar */}
-          <header className="sticky top-0 z-30 h-16 bg-background/95 backdrop-blur border-b flex items-center px-4 lg:px-6">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="lg:hidden mr-2"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
-            
-            <Breadcrumbs />
+          <header className="sticky top-0 z-30 h-16 bg-background/95 backdrop-blur border-b flex items-center justify-between px-4 lg:px-6">
+            <div className="flex items-center">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden mr-2"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+
+              <Breadcrumbs />
+            </div>
+
+            <UserButton
+              afterSignOutUrl="/sign-in"
+              appearance={{
+                elements: {
+                  avatarBox: "w-9 h-9"
+                }
+              }}
+            />
           </header>
 
           {/* Page content */}

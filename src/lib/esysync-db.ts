@@ -13,10 +13,9 @@ const pool = new Pool({
 })
 
 export interface EsySyncUser {
-  id: number
+  email: string        // wird als eindeutiger Identifier verwendet
   firstname: string
   lastname: string
-  email: string
   isverified: boolean
 }
 
@@ -24,9 +23,9 @@ export async function getEsySyncUsers(): Promise<EsySyncUser[]> {
   const client = await pool.connect()
   try {
     const result = await client.query(`
-      SELECT id, firstname, lastname, email, isverified 
-      FROM "User" 
-      ORDER BY id DESC
+      SELECT email, firstname, lastname, isverified
+      FROM "User"
+      ORDER BY email ASC
     `)
     return result.rows
   } finally {

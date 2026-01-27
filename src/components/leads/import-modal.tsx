@@ -21,15 +21,16 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Info, X } from 'lucide-react'
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Info, X, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import Papa from 'papaparse'
+import { SegmentSelect } from '@/components/segments/segment-select'
 
 interface ImportModalProps {
   children: React.ReactNode
 }
 
-type Step = 'upload' | 'mapping' | 'preview' | 'result'
+type Step = 'upload' | 'mapping' | 'segment' | 'result'
 
 interface ImportResult {
   imported: number
@@ -51,6 +52,7 @@ export function ImportModal({ children }: ImportModalProps) {
   })
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<ImportResult | null>(null)
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null)
 
   const resetState = () => {
     setStep('upload')
@@ -59,6 +61,7 @@ export function ImportModal({ children }: ImportModalProps) {
     setHeaders([])
     setMapping({ email: '', firstName: '', customFields: [] })
     setResult(null)
+    setSelectedSegmentId(null)
   }
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,7 +167,7 @@ export function ImportModal({ children }: ImportModalProps) {
       const res = await fetch('/api/leads/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leads })
+        body: JSON.stringify({ leads, segmentId: selectedSegmentId })
       })
 
       const data = await res.json()
@@ -343,10 +346,56 @@ export function ImportModal({ children }: ImportModalProps) {
               <Button variant="outline" onClick={() => setStep('upload')}>
                 Zurück
               </Button>
-              <Button 
-                onClick={handleImport} 
-                disabled={!mapping.email || !mapping.firstName || loading}
+              <Button
+                onClick={() => setStep('segment')}
+                disabled={!mapping.email || !mapping.firstName}
               >
+                Weiter
+                <ChevronRight className="ml-2 h-4 w-4" />
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {step === 'segment' && (
+          <>
+            <DialogHeader>
+              <DialogTitle>Segment zuweisen (optional)</DialogTitle>
+              <DialogDescription>
+                Weise die importierten Leads einem Segment zu oder überspringe diesen Schritt.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Segment</Label>
+                <SegmentSelect
+                  value={selectedSegmentId}
+                  onChange={setSelectedSegmentId}
+                  placeholder="Kein Segment (optional)"
+                  allowCreate={true}
+                  className="w-full"
+                />
+              </div>
+
+              {selectedSegmentId && (
+                <p className="text-sm text-muted-foreground">
+                  {csvData.length} Leads werden dem Segment zugewiesen.
+                </p>
+              )}
+
+              {!selectedSegmentId && (
+                <p className="text-sm text-muted-foreground">
+                  Leads werden ohne Segment-Zuordnung importiert.
+                </p>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStep('mapping')}>
+                Zurück
+              </Button>
+              <Button onClick={handleImport} disabled={loading}>
                 {loading ? 'Importiere...' : `${csvData.length} Leads importieren`}
               </Button>
             </DialogFooter>

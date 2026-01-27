@@ -1,21 +1,20 @@
 import { db } from './db'
 
-// Warm-up schedule: Tag -> Limit
+// Warmup Schedule basierend auf Resend's offizieller Empfehlung
+// Quelle: https://resend.com/docs/knowledge-base/warming-up
+// Für neue Subdomains bei Newsletter (Opt-in Subscriber, nicht Cold Outreach)
+// Das Limit erhöht sich basierend auf tatsächlichen Sende-Tagen, nicht Kalender-Tagen
 const WARMUP_SCHEDULE = [
-  { maxDay: 7, limit: 10 },
-  { maxDay: 14, limit: 20 },
-  { maxDay: 21, limit: 35 },
-  { maxDay: 28, limit: 50 },
-  { maxDay: 35, limit: 75 },
-  { maxDay: 42, limit: 100 },
+  { maxDay: 3, limit: 300 },   // Tag 1-3: 300/Tag (Resend: 150-400)
+  { maxDay: 7, limit: 1000 },  // Tag 4-7: 1.000/Tag (Resend: 700-2.000)
 ] as const
 
-const WARMUP_DURATION_DAYS = 42
+const WARMUP_DURATION_DAYS = 7
 
 export interface WarmupStatus {
   enabled: boolean
   startDate: Date
-  currentDay: number
+  currentDay: number // Anzahl aktiver Sende-Tage
   totalDays: number
   dailyLimit: number | null // null = unlimited
   sentToday: number
@@ -26,60 +25,77 @@ export interface WarmupStatus {
 
 export async function getOrCreateSettings() {
   let settings = await db.settings.findUnique({ where: { id: 'default' } })
-  
+
   if (!settings) {
     settings = await db.settings.create({
       data: { id: 'default' }
     })
   }
-  
+
   return settings
 }
 
-export function calculateDailyLimit(startDate: Date): number | null {
-  const now = new Date()
-  const diffTime = now.getTime() - startDate.getTime()
-  const daysSinceStart = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
-  
-  // Nach 42 Tagen: unbegrenzt
-  if (daysSinceStart > WARMUP_DURATION_DAYS) {
+// Zählt die Anzahl der Tage mit E-Mail-Versand seit dem Startdatum
+export async function getActiveSendingDays(startDate: Date): Promise<number> {
+  // Hole alle EmailLog-Einträge seit dem Startdatum
+  const logs = await db.emailLog.findMany({
+    where: {
+      sentAt: { gte: startDate }
+    },
+    select: { sentAt: true }
+  })
+
+  // Zähle eindeutige Tage
+  const uniqueDays = new Set<string>()
+  logs.forEach(log => {
+    const dateStr = log.sentAt.toISOString().split('T')[0]
+    uniqueDays.add(dateStr)
+  })
+
+  return uniqueDays.size
+}
+
+export function calculateDailyLimitFromActiveDays(activeDays: number): number | null {
+  // Nach 7 aktiven Sende-Tagen: unbegrenzt
+  if (activeDays >= WARMUP_DURATION_DAYS) {
     return null
   }
-  
-  // Finde das passende Limit
+
+  // Finde das passende Limit basierend auf aktiven Tagen
+  // +1 weil der heutige Tag auch zählt (wir senden ja heute)
+  const effectiveDay = activeDays + 1
+
   for (const tier of WARMUP_SCHEDULE) {
-    if (daysSinceStart <= tier.maxDay) {
+    if (effectiveDay <= tier.maxDay) {
       return tier.limit
     }
   }
-  
-  return null // Sollte nicht erreicht werden
+
+  return null // Unbegrenzt nach Schedule
 }
 
-export function getNextLimitIncrease(startDate: Date): { inDays: number; newLimit: number } | null {
-  const now = new Date()
-  const diffTime = now.getTime() - startDate.getTime()
-  const daysSinceStart = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
-  
-  if (daysSinceStart > WARMUP_DURATION_DAYS) {
+export function getNextLimitIncreaseFromActiveDays(activeDays: number): { inDays: number; newLimit: number } | null {
+  if (activeDays >= WARMUP_DURATION_DAYS) {
     return null
   }
-  
+
+  const effectiveDay = activeDays + 1
+
   for (const tier of WARMUP_SCHEDULE) {
-    if (daysSinceStart <= tier.maxDay) {
-      const daysUntilNext = tier.maxDay - daysSinceStart + 1
+    if (effectiveDay <= tier.maxDay) {
+      const daysUntilNext = tier.maxDay - effectiveDay + 1
       const nextTierIndex = WARMUP_SCHEDULE.indexOf(tier) + 1
-      const nextLimit = nextTierIndex < WARMUP_SCHEDULE.length 
-        ? WARMUP_SCHEDULE[nextTierIndex].limit 
+      const nextLimit = nextTierIndex < WARMUP_SCHEDULE.length
+        ? WARMUP_SCHEDULE[nextTierIndex].limit
         : null
-      
+
       if (nextLimit === null) {
         return { inDays: daysUntilNext, newLimit: -1 } // -1 = unlimited
       }
       return { inDays: daysUntilNext, newLimit: nextLimit }
     }
   }
-  
+
   return null
 }
 
@@ -114,22 +130,29 @@ export async function logEmailSent(leadId: string, subject: string) {
 export async function getWarmupStatus(): Promise<WarmupStatus> {
   const settings = await getOrCreateSettings()
   const sentToday = await getSentTodayCount()
-  
-  const now = new Date()
-  const diffTime = now.getTime() - settings.warmupStartDate.getTime()
-  const currentDay = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1
-  
-  const dailyLimit = settings.warmupEnabled 
-    ? calculateDailyLimit(settings.warmupStartDate)
+
+  // Zähle aktive Sende-Tage seit dem Startdatum
+  const activeDays = await getActiveSendingDays(settings.warmupStartDate)
+
+  // Prüfe ob heute bereits gesendet wurde - wenn ja, zählt heute schon
+  const todayStr = new Date().toISOString().split('T')[0]
+  const startStr = settings.warmupStartDate.toISOString().split('T')[0]
+  const todayCounts = sentToday > 0
+
+  // Effektiver Tag: aktive Sende-Tage + 1 (für heute, wenn noch nicht gesendet)
+  const currentDay = todayCounts ? activeDays : activeDays + 1
+
+  const dailyLimit = settings.warmupEnabled
+    ? calculateDailyLimitFromActiveDays(activeDays)
     : null
-  
-  const isComplete = currentDay > WARMUP_DURATION_DAYS
+
+  const isComplete = activeDays >= WARMUP_DURATION_DAYS
   const remaining = dailyLimit !== null ? Math.max(0, dailyLimit - sentToday) : null
-  
+
   const nextIncrease = settings.warmupEnabled && !isComplete
-    ? getNextLimitIncrease(settings.warmupStartDate)
+    ? getNextLimitIncreaseFromActiveDays(activeDays)
     : null
-  
+
   return {
     enabled: settings.warmupEnabled,
     startDate: settings.warmupStartDate,

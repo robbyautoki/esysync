@@ -10,6 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Info, Plus, Trash2, ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { SegmentSelect } from '@/components/segments/segment-select'
 
 export default function NewLeadPage() {
   const router = useRouter()
@@ -17,6 +18,7 @@ export default function NewLeadPage() {
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
   const [customFields, setCustomFields] = useState<{ key: string; value: string }[]>([])
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null)
 
   const addCustomField = () => {
     setCustomFields([...customFields, { key: '', value: '' }])
@@ -56,7 +58,8 @@ export default function NewLeadPage() {
         body: JSON.stringify({
           email: email.trim(),
           firstName: firstName.trim(),
-          customFields: Object.keys(customFieldsObj).length > 0 ? customFieldsObj : undefined
+          customFields: Object.keys(customFieldsObj).length > 0 ? customFieldsObj : undefined,
+          segmentId: selectedSegmentId
         })
       })
 
@@ -132,6 +135,28 @@ export default function NewLeadPage() {
                   required
                 />
               </div>
+            </div>
+
+            {/* Segment */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label>Segment (optional)</Label>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Weise den Lead einem Segment zu für gezielte Kampagnen
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <SegmentSelect
+                value={selectedSegmentId}
+                onChange={setSelectedSegmentId}
+                placeholder="Kein Segment"
+                allowCreate={true}
+                className="w-full md:w-auto md:min-w-[240px]"
+              />
             </div>
 
             {/* Custom Fields */}

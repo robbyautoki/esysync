@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { LeadTable } from '@/components/leads/lead-table'
 import { ImportModal } from '@/components/leads/import-modal'
+import { SegmentTabs } from '@/components/leads/segment-tabs'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Upload, Users } from 'lucide-react'
@@ -17,7 +18,27 @@ interface LeadsPageProps {
     status?: string
     sort?: string
     order?: string
+    segment?: string
   }
+}
+
+async function getSegments() {
+  const segments = await db.segment.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      _count: {
+        select: { leads: true }
+      }
+    }
+  })
+
+  return segments.map(s => ({
+    id: s.id,
+    name: s.name,
+    description: s.description,
+    color: s.color,
+    leadCount: s._count.leads
+  }))
 }
 
 async function getLeads(params: LeadsPageProps['searchParams']) {
@@ -26,7 +47,7 @@ async function getLeads(params: LeadsPageProps['searchParams']) {
   const skip = (page - 1) * limit
 
   const where: any = {}
-  
+
   if (params.search) {
     where.OR = [
       { email: { contains: params.search, mode: 'insensitive' } },
@@ -38,6 +59,15 @@ async function getLeads(params: LeadsPageProps['searchParams']) {
     where.status = params.status
   }
 
+  // Segment-Filter
+  if (params.segment) {
+    where.segments = {
+      some: {
+        segmentId: params.segment
+      }
+    }
+  }
+
   const orderBy: any = {}
   if (params.sort) {
     orderBy[params.sort] = params.order || 'asc'
@@ -45,7 +75,7 @@ async function getLeads(params: LeadsPageProps['searchParams']) {
     orderBy.createdAt = 'desc'
   }
 
-  const [leads, total] = await Promise.all([
+  const [leads, total, totalAll] = await Promise.all([
     db.lead.findMany({
       where,
       orderBy,
@@ -54,15 +84,24 @@ async function getLeads(params: LeadsPageProps['searchParams']) {
       include: {
         _count: {
           select: { events: true, sequenceStates: true }
+        },
+        segments: {
+          include: {
+            segment: {
+              select: { id: true, name: true, color: true }
+            }
+          }
         }
       }
     }),
-    db.lead.count({ where })
+    db.lead.count({ where }),
+    db.lead.count()
   ])
 
   return {
     leads,
     total,
+    totalAll,
     page,
     totalPages: Math.ceil(total / limit)
   }
@@ -120,19 +159,25 @@ function EmptyState() {
 }
 
 async function LeadsContent({ searchParams }: LeadsPageProps) {
-  const data = await getLeads(searchParams)
+  const [data, segments] = await Promise.all([
+    getLeads(searchParams),
+    getSegments()
+  ])
 
-  if (data.total === 0 && !searchParams.search && !searchParams.status) {
+  if (data.totalAll === 0 && !searchParams.search && !searchParams.status && !searchParams.segment) {
     return <EmptyState />
   }
 
   return (
-    <LeadTable 
-      leads={data.leads} 
-      total={data.total}
-      page={data.page}
-      totalPages={data.totalPages}
-    />
+    <div className="space-y-4">
+      <SegmentTabs segments={segments} totalLeads={data.totalAll} />
+      <LeadTable
+        leads={data.leads}
+        total={data.total}
+        page={data.page}
+        totalPages={data.totalPages}
+      />
+    </div>
   )
 }
 

@@ -129,3 +129,41 @@ html {
 .tiptap h3 {
   font-size: 1.1em;
 }
+
+/* TipTap Image Resize */
+.tiptap img {
+  max-width: 100%;
+  height: auto;
+  cursor: pointer;
+  transition: outline 0.15s ease;
+}
+
+.tiptap img.ProseMirror-selectednode {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+.tiptap .image-resizer {
+  display: inline-flex;
+  position: relative;
+  flex-grow: 0;
+}
+
+.tiptap .image-resizer .resize-trigger {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--background));
+  border-radius: 2px;
+  cursor: se-resize;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.tiptap .image-resizer:hover .resize-trigger,
+.tiptap .image-resizer:has(img.ProseMirror-selectednode) .resize-trigger {
+  opacity: 1;
+}

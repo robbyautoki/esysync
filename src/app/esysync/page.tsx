@@ -71,7 +71,7 @@ export default function EsySyncPage() {
     try {
       const res = await fetch('/api/sequences')
       const data = await res.json()
-      setSequences(data)
+      setSequences(data.sequences || [])
     } catch {
       // Ignore
     }

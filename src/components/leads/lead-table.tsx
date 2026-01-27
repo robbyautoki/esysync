@@ -27,6 +27,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
   AlertDialog,
@@ -39,15 +42,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { 
-  Search, 
-  MoreHorizontal, 
-  Trash2, 
-  Eye, 
-  ChevronLeft, 
+import {
+  Search,
+  MoreHorizontal,
+  Trash2,
+  Eye,
+  ChevronLeft,
   ChevronRight,
   ArrowUpDown,
-  Mail
+  Mail,
+  Tag,
+  Loader2
 } from 'lucide-react'
 import { formatRelativeDate } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -91,6 +96,12 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [sequenceModalOpen, setSequenceModalOpen] = useState(false)
   const [sequenceLeadIds, setSequenceLeadIds] = useState<string[]>([])
+  const [segmentConfirmOpen, setSegmentConfirmOpen] = useState(false)
+  const [segmentLeadIds, setSegmentLeadIds] = useState<string[]>([])
+  const [selectedSegment, setSelectedSegment] = useState<{ id: string; name: string } | null>(null)
+  const [addingToSegment, setAddingToSegment] = useState(false)
+  const [segments, setSegments] = useState<{ id: string; name: string; color: string | null }[]>([])
+  const [segmentsLoading, setSegmentsLoading] = useState(false)
 
   const updateSearchParams = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -171,6 +182,55 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
     setDeleteDialogOpen(false)
   }
 
+  const fetchSegments = async () => {
+    if (segments.length > 0) return // Already loaded
+    setSegmentsLoading(true)
+    try {
+      const res = await fetch('/api/segments')
+      if (res.ok) {
+        const data = await res.json()
+        setSegments(data.segments || [])
+      }
+    } catch {
+      console.error('Fehler beim Laden der Segmente')
+    } finally {
+      setSegmentsLoading(false)
+    }
+  }
+
+  const handleSegmentSelect = (segment: { id: string; name: string }, leadIds: string[]) => {
+    setSelectedSegment(segment)
+    setSegmentLeadIds(leadIds)
+    setSegmentConfirmOpen(true)
+  }
+
+  const handleAddToSegment = async () => {
+    if (!selectedSegment || segmentLeadIds.length === 0) return
+
+    setAddingToSegment(true)
+    try {
+      const res = await fetch(`/api/segments/${selectedSegment.id}/leads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadIds: segmentLeadIds })
+      })
+
+      if (!res.ok) throw new Error('Fehler beim Hinzufügen')
+
+      const result = await res.json()
+      toast.success(`${result.added} Lead(s) zu "${selectedSegment.name}" hinzugefügt${result.skipped > 0 ? `, ${result.skipped} bereits im Segment` : ''}`)
+      setSegmentConfirmOpen(false)
+      setSelectedSegment(null)
+      setSegmentLeadIds([])
+      setSelectedIds([])
+      router.refresh()
+    } catch {
+      toast.error('Leads konnten nicht zum Segment hinzugefügt werden')
+    } finally {
+      setAddingToSegment(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -210,14 +270,49 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
           <span className="text-sm font-medium">
             {selectedIds.length} ausgewählt
           </span>
+          <DropdownMenu onOpenChange={(open) => open && fetchSegments()}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Tag className="mr-2 h-4 w-4" />
+                Zu Segment ({selectedIds.length})
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              {segmentsLoading ? (
+                <div className="flex items-center justify-center py-2 px-4">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <span className="text-sm">Lädt...</span>
+                </div>
+              ) : segments.length === 0 ? (
+                <div className="py-2 px-4 text-sm text-muted-foreground">
+                  Keine Segmente vorhanden
+                </div>
+              ) : (
+                segments.map(segment => (
+                  <DropdownMenuItem
+                    key={segment.id}
+                    onClick={() => handleSegmentSelect(segment, selectedIds)}
+                  >
+                    {segment.color && (
+                      <span
+                        className="h-2 w-2 rounded-full mr-2"
+                        style={{ backgroundColor: segment.color }}
+                      />
+                    )}
+                    {segment.name}
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {(() => {
             const activeSelectedIds = selectedIds.filter(id => {
               const lead = leads.find(l => l.id === id)
               return lead && lead.status !== 'UNSUBSCRIBED'
             })
             return activeSelectedIds.length > 0 && (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   setSequenceLeadIds(activeSelectedIds)
@@ -229,8 +324,8 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
               </Button>
             )
           })()}
-          <Button 
-            variant="destructive" 
+          <Button
+            variant="destructive"
             size="sm"
             onClick={() => {
               setDeletingId(null)
@@ -374,6 +469,39 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
                             Details anzeigen
                           </Link>
                         </DropdownMenuItem>
+                        <DropdownMenuSub>
+                          <DropdownMenuSubTrigger onPointerEnter={fetchSegments}>
+                            <Tag className="mr-2 h-4 w-4" />
+                            Zu Segment hinzufügen
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent>
+                            {segmentsLoading ? (
+                              <div className="flex items-center justify-center py-2 px-4">
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                <span className="text-sm">Lädt...</span>
+                              </div>
+                            ) : segments.length === 0 ? (
+                              <div className="py-2 px-4 text-sm text-muted-foreground">
+                                Keine Segmente
+                              </div>
+                            ) : (
+                              segments.map(segment => (
+                                <DropdownMenuItem
+                                  key={segment.id}
+                                  onClick={() => handleSegmentSelect(segment, [lead.id])}
+                                >
+                                  {segment.color && (
+                                    <span
+                                      className="h-2 w-2 rounded-full mr-2"
+                                      style={{ backgroundColor: segment.color }}
+                                    />
+                                  )}
+                                  {segment.name}
+                                </DropdownMenuItem>
+                              ))
+                            )}
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
                         {lead.status !== 'UNSUBSCRIBED' && (
                           <DropdownMenuItem
                             onClick={() => {
@@ -468,6 +596,42 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
         leadIds={sequenceLeadIds}
         onSuccess={() => setSelectedIds([])}
       />
+
+      {/* Add to Segment Confirmation */}
+      <AlertDialog open={segmentConfirmOpen} onOpenChange={(open) => {
+        setSegmentConfirmOpen(open)
+        if (!open) {
+          setSelectedSegment(null)
+          setSegmentLeadIds([])
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Zu Segment hinzufügen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {segmentLeadIds.length === 1
+                ? `Möchtest du diesen Lead zum Segment "${selectedSegment?.name}" hinzufügen?`
+                : `Möchtest du ${segmentLeadIds.length} Leads zum Segment "${selectedSegment?.name}" hinzufügen?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={addingToSegment}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAddToSegment}
+              disabled={addingToSegment}
+            >
+              {addingToSegment ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Füge hinzu...
+                </>
+              ) : (
+                'Hinzufügen'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

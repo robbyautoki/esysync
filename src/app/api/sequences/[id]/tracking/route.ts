@@ -199,6 +199,16 @@ export async function GET(
       count: item._count
     }))
 
+    // Format recentClicks for backward compatibility with sequence-tracking widget
+    const recentClicks = recentActivity
+      .filter(a => a.type === 'click')
+      .map(a => ({
+        leadId: a.leadId,
+        leadName: a.leadName,
+        url: a.url || '',
+        clickedAt: a.timestamp
+      }))
+
     return NextResponse.json({
       totalSent,
       uniqueOpens,
@@ -212,7 +222,8 @@ export async function GET(
       stepStats: formattedStepStats,
       timeline: formattedTimeline,
       topLinks,
-      recentActivity
+      recentActivity,
+      recentClicks
     })
   } catch (error) {
     console.error('Error fetching tracking stats:', error)

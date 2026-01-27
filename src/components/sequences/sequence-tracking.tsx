@@ -170,7 +170,7 @@ export function SequenceTracking({
         ) : null}
 
         {/* Recent Clicks */}
-        {stats && stats.recentClicks.length > 0 && (
+        {stats && stats.recentClicks?.length > 0 && (
           <div>
             <h4 className="text-sm font-medium mb-2">Letzte Klicks</h4>
             <div className="space-y-2">

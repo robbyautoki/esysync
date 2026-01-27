@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { TiptapEditor } from './tiptap-editor'
 import { emailTemplates, EmailTemplate } from '@/lib/email-templates'
+import { AiEmailWriter } from './ai-email-writer'
 
 interface Step {
   id: string
@@ -87,6 +88,7 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
   const [spamCheckOpen, setSpamCheckOpen] = useState(false)
   const [spamCheckLoading, setSpamCheckLoading] = useState(false)
   const [spamCheckResult, setSpamCheckResult] = useState<SpamCheckApiResult | null>(null)
+  const [aiWriterOpen, setAiWriterOpen] = useState(false)
 
   const applyTemplate = (template: EmailTemplate) => {
     // Check if there's existing content
@@ -264,6 +266,16 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
         </div>
 
         <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={() => setAiWriterOpen(true)}>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Mit KI schreiben
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>E-Mail von KI generieren lassen</TooltipContent>
+          </Tooltip>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" onClick={handleSpamCheck} disabled={spamCheckLoading}>
@@ -613,6 +625,19 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AI Email Writer */}
+      <AiEmailWriter
+        open={aiWriterOpen}
+        onOpenChange={setAiWriterOpen}
+        onApply={(newSubject, newContent) => {
+          setSubject(newSubject)
+          setContent(newContent)
+          if (editorInstance) {
+            editorInstance.commands.setContent(newContent)
+          }
+        }}
+      />
     </div>
   )
 }

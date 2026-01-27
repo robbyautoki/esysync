@@ -20,9 +20,10 @@ const emailSettingsSchema = z.object({
   }).nullable().optional(),
   primaryColor: z.string().optional(),
   senderName: z.string().nullable().optional(),
-  replyToEmail: z.string().email().nullable().optional()
-    .or(z.literal(''))
-    .transform(val => val === '' ? null : val),
+  replyToEmail: z.preprocess(
+    (val) => (val === '' ? null : val),
+    z.string().email().nullable().optional()
+  ),
 })
 
 // Transformiert null-Werte für JSON-Felder zu Prisma.DbNull

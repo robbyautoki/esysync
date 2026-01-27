@@ -110,7 +110,7 @@ export function SequenceTable({ sequences, selectedIds, onSelectionChange, onOpe
             </TableRow>
           ) : (
             sequences.map((sequence) => {
-              const emailSteps = sequence.steps.filter(s => s.type === 'EMAIL').length
+              const emailSteps = (sequence.steps ?? []).filter(s => s.type === 'EMAIL').length
 
               return (
                 <TableRow key={sequence.id} data-state={selectedIds.includes(sequence.id) ? 'selected' : undefined}>

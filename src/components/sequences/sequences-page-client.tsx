@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { SequenceTable } from './sequence-table'
-import { FolderAccordion } from './folder-accordion'
+import { FolderSidebar } from './folder-sidebar'
 import { SequenceAnalyticsSheet } from './sequence-analytics-sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Trash2, X, AlertTriangle, Loader2, FolderPlus } from 'lucide-react'
+import { Trash2, X, AlertTriangle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface SequenceFolder {
@@ -72,6 +72,7 @@ export function SequencesPageClient({ sequences, folders }: SequencesPageClientP
   const [folderDialogOpen, setFolderDialogOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [creatingFolder, setCreatingFolder] = useState(false)
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
 
   const handleOpenAnalytics = (sequence: Sequence) => {
     setSelectedSequence(sequence)
@@ -201,26 +202,28 @@ export function SequencesPageClient({ sequences, folders }: SequencesPageClientP
     }
   }
 
-  // Sequences without folder
-  const unfolderedSequences = useMemo(() => {
-    return sequences.filter(s => !s.folderId)
+  // Filtered sequences based on selected folder
+  const filteredSequences = useMemo(() => {
+    if (selectedFolderId === null) return sequences
+    return sequences.filter(s => s.folderId === selectedFolderId)
+  }, [sequences, selectedFolderId])
+
+  // Count sequences per folder
+  const sequenceCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    sequences.forEach(s => {
+      if (s.folderId) {
+        counts[s.folderId] = (counts[s.folderId] || 0) + 1
+      }
+    })
+    return counts
   }, [sequences])
 
   return (
     <>
-      {/* Actions Bar */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setFolderDialogOpen(true)}
-          >
-            <FolderPlus className="h-4 w-4 mr-2" />
-            Neuer Ordner
-          </Button>
-        </div>
-        {selectedIds.length > 0 && (
+      {/* Bulk Actions Bar */}
+      {selectedIds.length > 0 && (
+        <div className="mb-4 flex items-center justify-end">
           <div className="flex items-center gap-3 p-2 bg-muted rounded-lg border">
             <span className="text-sm font-medium">
               {selectedIds.length} ausgewählt
@@ -242,42 +245,33 @@ export function SequencesPageClient({ sequences, folders }: SequencesPageClientP
               Löschen
             </Button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="space-y-6">
-        {/* Folders Section */}
-        {folders.length > 0 && (
-          <FolderAccordion
+      {/* Main Layout: Sidebar + Table */}
+      <div className="flex gap-6">
+        <FolderSidebar
+          folders={folders}
+          selectedFolderId={selectedFolderId}
+          onSelectFolder={setSelectedFolderId}
+          sequenceCounts={sequenceCounts}
+          totalCount={sequences.length}
+          onCreateFolder={() => setFolderDialogOpen(true)}
+          onRenameFolder={handleRenameFolder}
+          onDeleteFolder={handleDeleteFolder}
+        />
+
+        <div className="flex-1 min-w-0">
+          <SequenceTable
+            sequences={filteredSequences}
             folders={folders}
-            sequences={sequences}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            onOpenAnalytics={handleOpenAnalytics}
             onUpdateColor={handleUpdateSequenceColor}
             onUpdateFolder={handleUpdateSequenceFolder}
-            onDeleteFolder={handleDeleteFolder}
-            onRenameFolder={handleRenameFolder}
-            onOpenAnalytics={handleOpenAnalytics}
           />
-        )}
-
-        {/* Unfoldered Sequences */}
-        {unfolderedSequences.length > 0 && (
-          <div>
-            {folders.length > 0 && (
-              <h3 className="text-sm font-medium mb-3 text-muted-foreground">
-                Sequenzen ohne Ordner
-              </h3>
-            )}
-            <SequenceTable
-              sequences={unfolderedSequences}
-              folders={folders}
-              selectedIds={selectedIds}
-              onSelectionChange={setSelectedIds}
-              onOpenAnalytics={handleOpenAnalytics}
-              onUpdateColor={handleUpdateSequenceColor}
-              onUpdateFolder={handleUpdateSequenceFolder}
-            />
-          </div>
-        )}
+        </div>
       </div>
 
       <SequenceAnalyticsSheet

@@ -747,18 +747,18 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
           </div>
 
           {/* Preview-Bereich (rechts) */}
-          <div className="w-96 flex flex-col bg-muted/30">
-            <div className="px-6 py-4 border-b">
-              <h3 className="font-medium text-sm">Generierte Steps</h3>
-              {generatedSteps.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {selectedStepIds.size} von {generatedSteps.length} ausgewählt
-                </p>
-              )}
-            </div>
+          <div className="w-96 flex flex-col">
+            {/* Minimaler Header - nur Anzahl, animiert */}
+            {generatedSteps.length > 0 && (
+              <div className="px-6 py-4 animate-in fade-in slide-in-from-top duration-300">
+                <span className="text-sm font-medium text-muted-foreground">
+                  {generatedSteps.length} Steps
+                </span>
+              </div>
+            )}
 
             <ScrollArea className="flex-1">
-              <div className="px-6 py-4 space-y-2">
+              <div className="px-6 py-2 space-y-2">
                 {stepsLoading && chatMode === 'execute' ? (
                   <div className="space-y-3">
                     <Skeleton className="h-16 w-full" />
@@ -779,9 +779,10 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                     return (
                       <div 
                         key={step.id}
-                        className={`p-3 rounded-lg border bg-card cursor-pointer transition-colors ${
+                        className={`p-3 rounded-lg border bg-card cursor-pointer transition-colors animate-in fade-in slide-in-from-top duration-300 ${
                           isSelected ? 'ring-2 ring-primary' : 'hover:bg-muted/50'
                         }`}
+                        style={{ animationDelay: `${index * 80}ms`, animationFillMode: 'backwards' }}
                         onClick={() => toggleStep(step.id)}
                       >
                         <div className="flex items-start gap-3">

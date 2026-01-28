@@ -33,6 +33,7 @@ interface Sequence {
 export function SequenceActions({ sequence }: { sequence: Sequence }) {
   const router = useRouter()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [activeDialogOpen, setActiveDialogOpen] = useState(false)
 
   const handleToggleActive = async () => {
     try {
@@ -91,7 +92,7 @@ export function SequenceActions({ sequence }: { sequence: Sequence }) {
               Bearbeiten
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleToggleActive}>
+          <DropdownMenuItem onClick={() => setActiveDialogOpen(true)}>
             {sequence.isActive ? (
               <>
                 <Pause className="mr-2 h-4 w-4" />
@@ -136,6 +137,33 @@ export function SequenceActions({ sequence }: { sequence: Sequence }) {
               onClick={handleDelete}
             >
               Löschen
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={activeDialogOpen} onOpenChange={setActiveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {sequence.isActive ? 'Sequenz pausieren?' : 'Sequenz aktivieren?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {sequence.isActive 
+                ? 'Neue Leads werden nicht mehr automatisch hinzugefügt. Bestehende Leads in der Sequenz erhalten weiterhin ihre geplanten E-Mails.'
+                : 'Die Sequenz wird für neue Leads aktiviert. Leads die den Trigger erfüllen werden automatisch hinzugefügt und erhalten die E-Mails.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction
+              className={sequence.isActive ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'}
+              onClick={() => {
+                handleToggleActive()
+                setActiveDialogOpen(false)
+              }}
+            >
+              {sequence.isActive ? 'Pausieren' : 'Aktivieren'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

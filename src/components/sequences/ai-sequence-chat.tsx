@@ -15,7 +15,7 @@ import { Message } from '@/components/ai/message'
 import { ConversationContent } from '@/components/ai/conversation'
 import { PromptInput } from '@/components/ai/prompt-input'
 import { Loader } from '@/components/ai/loader'
-import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, Globe, Zap, Search, User, ChevronDown, Plus, Play, FileText, Eye, RotateCcw } from 'lucide-react'
+import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, Globe, Zap, Search, User, ChevronDown, Plus, Play, FileText, Eye, History, Trash2 } from 'lucide-react'
 import { ModelSelector } from '@/components/ai/model-selector'
 import { EmailPreviewModal } from '@/components/sequences/email-preview-modal'
 import {
@@ -60,6 +60,15 @@ interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
   steps?: Step[]
+  stepsLoading?: boolean
+}
+
+interface SavedChat {
+  id: string
+  title: string
+  createdAt: number
+  messages: ChatMessage[]
+  chatMode: 'plan' | 'execute'
 }
 
 interface CompanyProfile {
@@ -137,47 +146,95 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
   const [marketingContext, setMarketingContext] = useState<MarketingContext | null>(null)
   const [chatMode, setChatMode] = useState<'plan' | 'execute'>('plan')
   const [previewStep, setPreviewStep] = useState<Step | null>(null)
+  const [savedChats, setSavedChats] = useState<SavedChat[]>([])
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
+  const [historySearch, setHistorySearch] = useState('')
+  const [executingMessageId, setExecutingMessageId] = useState<string | null>(null)
 
-  const CHAT_STORAGE_KEY = `ai-chat-${sequenceId}`
+  const CHATS_STORAGE_KEY = `ai-chats-${sequenceId}`
+  const MAX_SAVED_CHATS = 10
 
-  // Chat aus localStorage laden
-  const loadChatFromStorage = () => {
+  // Alle Chats aus localStorage laden
+  const loadChatsFromStorage = (): SavedChat[] => {
     try {
-      const stored = localStorage.getItem(CHAT_STORAGE_KEY)
+      const stored = localStorage.getItem(CHATS_STORAGE_KEY)
       if (stored) {
-        const data = JSON.parse(stored)
-        if (data.messages?.length > 0) {
-          setMessages(data.messages)
-          setGeneratedSteps(data.generatedSteps || [])
-          setSelectedStepIds(new Set(data.generatedSteps?.map((s: Step) => s.id) || []))
-          setChatMode(data.chatMode || 'plan')
-          setShowGoalSelection(false)
-          return true
-        }
+        return JSON.parse(stored)
       }
     } catch {
       // Ignore errors
     }
-    return false
+    return []
   }
 
-  // Chat in localStorage speichern
-  const saveChatToStorage = (msgs: ChatMessage[], steps: Step[], mode: 'plan' | 'execute') => {
+  // Chats in localStorage speichern
+  const saveChatsToStorage = (chats: SavedChat[]) => {
     try {
-      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({
-        messages: msgs,
-        generatedSteps: steps,
-        chatMode: mode,
-        timestamp: Date.now()
-      }))
+      // Max. 10 Chats behalten
+      const trimmedChats = chats.slice(0, MAX_SAVED_CHATS)
+      localStorage.setItem(CHATS_STORAGE_KEY, JSON.stringify(trimmedChats))
+      setSavedChats(trimmedChats)
     } catch {
       // Ignore errors
+    }
+  }
+
+  // Aktuellen Chat speichern
+  const saveCurrentChat = (msgs: ChatMessage[], mode: 'plan' | 'execute') => {
+    if (msgs.length <= 1) return
+    
+    const chats = loadChatsFromStorage()
+    const firstUserMsg = msgs.find(m => m.role === 'user')
+    const title = firstUserMsg?.content?.slice(0, 50) || `Chat vom ${new Date().toLocaleDateString('de-DE')}`
+    
+    if (currentChatId) {
+      // Bestehenden Chat updaten
+      const idx = chats.findIndex(c => c.id === currentChatId)
+      if (idx >= 0) {
+        chats[idx] = { ...chats[idx], messages: msgs, chatMode: mode }
+      }
+    } else {
+      // Neuen Chat erstellen
+      const newChat: SavedChat = {
+        id: `chat-${Date.now()}`,
+        title,
+        createdAt: Date.now(),
+        messages: msgs,
+        chatMode: mode
+      }
+      chats.unshift(newChat)
+      setCurrentChatId(newChat.id)
+    }
+    
+    saveChatsToStorage(chats)
+  }
+
+  // Chat laden
+  const loadChat = (chat: SavedChat) => {
+    setMessages(chat.messages)
+    setChatMode(chat.chatMode)
+    setCurrentChatId(chat.id)
+    setShowGoalSelection(false)
+    
+    const lastMsgWithSteps = [...chat.messages].reverse().find(m => m.steps?.length)
+    if (lastMsgWithSteps?.steps) {
+      setGeneratedSteps(lastMsgWithSteps.steps)
+      setSelectedStepIds(new Set(lastMsgWithSteps.steps.map(s => s.id)))
+    }
+  }
+
+  // Chat löschen
+  const deleteChat = (chatId: string) => {
+    const chats = loadChatsFromStorage().filter(c => c.id !== chatId)
+    saveChatsToStorage(chats)
+    if (currentChatId === chatId) {
+      startNewChat()
     }
   }
 
   // Neuen Chat starten
   const startNewChat = () => {
-    localStorage.removeItem(CHAT_STORAGE_KEY)
+    setCurrentChatId(null)
     setMessages([])
     setGeneratedSteps([])
     setSelectedStepIds(new Set())
@@ -195,10 +252,17 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
 
   // Chat speichern bei Änderungen
   useEffect(() => {
-    if (messages.length > 1 || generatedSteps.length > 0) {
-      saveChatToStorage(messages, generatedSteps, chatMode)
+    if (messages.length > 1) {
+      saveCurrentChat(messages, chatMode)
     }
-  }, [messages, generatedSteps, chatMode])
+  }, [messages, chatMode])
+
+  // Chats beim Öffnen laden
+  useEffect(() => {
+    if (open) {
+      setSavedChats(loadChatsFromStorage())
+    }
+  }, [open])
 
   // Lade Profil und Marketing-Kontext beim Öffnen
   useEffect(() => {
@@ -231,10 +295,11 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
         if (data.activeProfile) {
           setCompanyProfile(data.activeProfile)
           
-          // Versuche gespeicherten Chat zu laden
-          const hasStoredChat = loadChatFromStorage()
-          
-          if (!hasStoredChat) {
+          // Versuche letzten Chat zu laden
+          const chats = loadChatsFromStorage()
+          if (chats.length > 0) {
+            loadChat(chats[0])
+          } else {
             setShowGoalSelection(true)
             setMessages([{
               id: 'welcome',
@@ -586,17 +651,71 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
               <Sparkles className="w-5 h-5 text-primary" />
               KI Sequenz-Builder
             </SheetTitle>
-            {messages.length > 1 && (
+            <div className="flex items-center gap-2">
+              {savedChats.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <History className="w-4 h-4 mr-1" />
+                      History ({savedChats.length})
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-72">
+                    <div className="p-2">
+                      <Input
+                        placeholder="Chats durchsuchen..."
+                        value={historySearch}
+                        onChange={(e) => setHistorySearch(e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <DropdownMenuSeparator />
+                    <ScrollArea className="max-h-60">
+                      {savedChats
+                        .filter(c => !historySearch || c.title.toLowerCase().includes(historySearch.toLowerCase()))
+                        .map(chat => (
+                          <DropdownMenuItem
+                            key={chat.id}
+                            className="flex items-center justify-between cursor-pointer"
+                            onClick={() => loadChat(chat)}
+                          >
+                            <div className="flex-1 min-w-0 mr-2">
+                              <p className="text-sm truncate">{chat.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(chat.createdAt).toLocaleDateString('de-DE')}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deleteChat(chat.id)
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </DropdownMenuItem>
+                        ))}
+                    </ScrollArea>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={startNewChat}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <RotateCcw className="w-4 h-4 mr-1" />
+                <Plus className="w-4 h-4 mr-1" />
                 Neuer Chat
               </Button>
-            )}
+            </div>
           </div>
         </SheetHeader>
 
@@ -660,7 +779,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                                 )
                               })}
                             </div>
-                            <div className="mt-4 flex gap-2">
+                            <div className="mt-4 flex flex-wrap gap-2">
                               <Button 
                                 size="sm"
                                 onClick={() => {
@@ -672,6 +791,22 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                                 <Check className="w-4 h-4 mr-1" />
                                 Alle übernehmen
                               </Button>
+                              {msg.steps!.some(s => s.type === 'EMAIL' && !s.body) && (
+                                <Button 
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const stepsWithoutBody = msg.steps!.map(s => 
+                                      s.type === 'EMAIL' ? { ...s, body: null } : s
+                                    )
+                                    onApplySteps(stepsWithoutBody)
+                                    onOpenChange(false)
+                                    toast.success(`${msg.steps!.length} Steps übernommen (ohne E-Mail-Texte)`)
+                                  }}
+                                >
+                                  Ohne E-Mail-Texte
+                                </Button>
+                              )}
                             </div>
                           </div>
                         )}

@@ -21,6 +21,19 @@ interface EmailPreviewModalProps {
   onEdit?: () => void
 }
 
+interface EmailSettings {
+  companyName?: string
+  companyAddress?: string
+  footerLogo?: string
+  footerText?: string
+  socialLinks?: {
+    twitter?: string
+    linkedin?: string
+    instagram?: string
+    facebook?: string
+  }
+}
+
 export function EmailPreviewModal({
   open,
   onOpenChange,
@@ -31,7 +44,7 @@ export function EmailPreviewModal({
   onEdit
 }: EmailPreviewModalProps) {
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop')
-  const [settings, setSettings] = useState<{ companyName?: string; companyAddress?: string } | null>(null)
+  const [settings, setSettings] = useState<EmailSettings | null>(null)
 
   useEffect(() => {
     if (open) {
@@ -48,6 +61,9 @@ export function EmailPreviewModal({
       
       let name = companyName
       let address = companyAddress
+      let footerLogo: string | undefined
+      let footerText: string | undefined
+      let socialLinks: EmailSettings['socialLinks'] | undefined
       
       if (settingsRes.ok) {
         const data = await settingsRes.json()
@@ -58,15 +74,14 @@ export function EmailPreviewModal({
       
       if (emailRes.ok) {
         const emailData = await emailRes.json()
-        if (emailData.companyName) {
-          name = emailData.companyName
-        }
-        if (emailData.companyAddress) {
-          address = emailData.companyAddress
-        }
+        if (emailData.companyName) name = emailData.companyName
+        if (emailData.companyAddress) address = emailData.companyAddress
+        if (emailData.footerLogo) footerLogo = emailData.footerLogo
+        if (emailData.footerText) footerText = emailData.footerText
+        if (emailData.socialLinks) socialLinks = emailData.socialLinks
       }
       
-      setSettings({ companyName: name, companyAddress: address })
+      setSettings({ companyName: name, companyAddress: address, footerLogo, footerText, socialLinks })
     } catch {
       // Use defaults
     }
@@ -74,12 +89,28 @@ export function EmailPreviewModal({
 
   const displayCompanyName = settings?.companyName || companyName
   const displayAddress = settings?.companyAddress || companyAddress
+  const displayLogo = settings?.footerLogo
+  const displayFooterText = settings?.footerText
+  const socialLinks = settings?.socialLinks
+
+  // Social Media Icons als SVG
+  const socialIconsHtml = socialLinks && Object.values(socialLinks).some(v => v) ? `
+    <div style="margin:16px 0;">
+      ${socialLinks.twitter ? `<a href="${socialLinks.twitter}" style="display:inline-block;margin:0 6px;"><img src="https://cdn-icons-png.flaticon.com/24/733/733579.png" alt="Twitter" style="width:20px;height:20px;opacity:0.6;" /></a>` : ''}
+      ${socialLinks.linkedin ? `<a href="${socialLinks.linkedin}" style="display:inline-block;margin:0 6px;"><img src="https://cdn-icons-png.flaticon.com/24/174/174857.png" alt="LinkedIn" style="width:20px;height:20px;opacity:0.6;" /></a>` : ''}
+      ${socialLinks.instagram ? `<a href="${socialLinks.instagram}" style="display:inline-block;margin:0 6px;"><img src="https://cdn-icons-png.flaticon.com/24/174/174855.png" alt="Instagram" style="width:20px;height:20px;opacity:0.6;" /></a>` : ''}
+      ${socialLinks.facebook ? `<a href="${socialLinks.facebook}" style="display:inline-block;margin:0 6px;"><img src="https://cdn-icons-png.flaticon.com/24/733/733547.png" alt="Facebook" style="width:20px;height:20px;opacity:0.6;" /></a>` : ''}
+    </div>
+  ` : ''
 
   const footerHtml = `
     <div style="margin-top:40px;padding-top:20px;border-top:1px solid #eee;text-align:center;font-size:12px;color:#666;">
+      ${displayLogo ? `<img src="${displayLogo}" alt="Logo" style="max-width:120px;max-height:60px;margin-bottom:16px;" />` : ''}
       <p style="margin:0 0 8px 0;">${displayCompanyName}</p>
       <p style="margin:0 0 8px 0;">${displayAddress}</p>
-      <p style="margin:0;">
+      ${displayFooterText ? `<p style="margin:0 0 12px 0;">${displayFooterText}</p>` : ''}
+      ${socialIconsHtml}
+      <p style="margin:16px 0 0 0;">
         <a href="{{unsubscribeUrl}}" style="color:#666;text-decoration:underline;">Abmelden</a>
       </p>
     </div>

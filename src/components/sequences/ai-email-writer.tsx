@@ -61,8 +61,8 @@ export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, ex
   const [selectedInstructionId, setSelectedInstructionId] = useState<string>('')
   const [prompt, setPrompt] = useState('')
   const [generating, setGenerating] = useState(false)
-  const [result, setResult] = useState<{ subject: string; content: any } | null>(null)
-  const [mode, setMode] = useState<'new' | 'continue'>('new')
+  const [result, setResult] = useState<{ subject: string; content: any; actions?: any[] } | null>(null)
+  const [mode, setMode] = useState<'new' | 'edit'>('new')
   
   const hasExistingContent = existingContent?.content?.some((node: any) => 
     node.content?.some((child: any) => child.text?.trim()) || 
@@ -108,8 +108,8 @@ export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, ex
           prompt,
           variables: ['firstName', 'email'],
           mode,
-          existingContent: mode === 'continue' ? existingContent : undefined,
-          existingSubject: mode === 'continue' ? existingSubject : undefined
+          existingContent: mode === 'edit' ? existingContent : undefined,
+          existingSubject: mode === 'edit' ? existingSubject : undefined
         })
       })
       
@@ -350,35 +350,38 @@ export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, ex
                 )}
               </div>
               
-              {/* Mode Selection */}
+              {/* Mode Selection - Tabs */}
               {hasExistingContent && (
                 <div className="space-y-2">
-                  <Label>Modus</Label>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="mode"
-                        checked={mode === 'new'}
-                        onChange={() => setMode('new')}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm">Neu erstellen</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="mode"
-                        checked={mode === 'continue'}
-                        onChange={() => setMode('continue')}
-                        className="w-4 h-4"
-                      />
-                      <span className="text-sm">Weiter bearbeiten</span>
-                    </label>
+                  <div className="flex rounded-lg border bg-muted p-1">
+                    <button
+                      type="button"
+                      onClick={() => setMode('new')}
+                      className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        mode === 'new' 
+                          ? 'bg-background text-foreground shadow-sm' 
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Sparkles className="inline-block w-4 h-4 mr-2" />
+                      Neu erstellen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMode('edit')}
+                      className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                        mode === 'edit' 
+                          ? 'bg-background text-foreground shadow-sm' 
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Pencil className="inline-block w-4 h-4 mr-2" />
+                      Bearbeiten
+                    </button>
                   </div>
-                  {mode === 'continue' && (
+                  {mode === 'edit' && (
                     <p className="text-xs text-muted-foreground">
-                      Die KI bearbeitet deinen bestehenden Text basierend auf deiner Anweisung
+                      Präzise Änderungen am bestehenden Inhalt (z.B. "Button grün machen")
                     </p>
                   )}
                 </div>
@@ -386,19 +389,19 @@ export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, ex
               
               {/* Prompt Input */}
               <div className="space-y-2 flex-1">
-                <Label>{mode === 'continue' ? 'Was soll geändert werden?' : 'Was soll die E-Mail machen?'}</Label>
+                <Label>{mode === 'edit' ? 'Was soll geändert werden?' : 'Was soll die E-Mail machen?'}</Label>
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder={mode === 'continue' 
-                    ? "z.B. Füg einen blauen Button 'Zum Shop' hinzu, der zu https://shop.example.com führt"
+                  placeholder={mode === 'edit' 
+                    ? "z.B. Button grün machen, Abstand vor dem Button einfügen, Überschrift rot färben"
                     : "z.B. Willkommens-Email für neue Newsletter-Abonnenten. Soll sich für die Anmeldung bedanken und einen ersten Tipp geben."
                   }
                   className="min-h-[150px] resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  {mode === 'continue' 
-                    ? "Beschreibe was hinzugefügt, geändert oder entfernt werden soll"
+                  {mode === 'edit' 
+                    ? "Die KI ändert NUR was du beschreibst - alles andere bleibt unverändert"
                     : "Je detaillierter die Beschreibung, desto besser das Ergebnis"
                   }
                 </p>

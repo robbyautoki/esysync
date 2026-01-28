@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { executeActions, EditorAction, TiptapContent } from '@/lib/editor-functions'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,8 +9,261 @@ interface GenerateEmailRequest {
   variables?: string[]
   existingContent?: any
   existingSubject?: string
-  mode: 'new' | 'continue'
+  mode: 'new' | 'edit'
 }
+
+// OpenAI Function Definitions für Edit-Modus
+const EDIT_FUNCTIONS = [
+  {
+    name: 'modifyButton',
+    description: 'Ändert einen bestehenden Button (Farbe, Text oder URL)',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Buttons (0-basiert), oder -1 für ersten Button' },
+        text: { type: 'string', description: 'Neuer Button-Text (optional)' },
+        url: { type: 'string', description: 'Neue Button-URL (optional)' },
+        color: { type: 'string', description: 'Neue Button-Farbe als Hex (#000000=schwarz, #2563eb=blau, #16a34a=grün)' }
+      },
+      required: ['position']
+    }
+  },
+  {
+    name: 'insertButton',
+    description: 'Fügt einen neuen CTA-Button ein',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position zum Einfügen (0=Anfang, -1=Ende)' },
+        text: { type: 'string', description: 'Button-Text' },
+        url: { type: 'string', description: 'Button-URL' },
+        color: { type: 'string', description: 'Button-Farbe (#000000, #2563eb, #16a34a)', default: '#000000' }
+      },
+      required: ['position', 'text', 'url']
+    }
+  },
+  {
+    name: 'deleteButton',
+    description: 'Entfernt einen Button',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Buttons' }
+      },
+      required: ['position']
+    }
+  },
+  {
+    name: 'insertSpacer',
+    description: 'Fügt einen vertikalen Abstand ein',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position zum Einfügen' },
+        size: { type: 'string', enum: ['small', 'medium', 'large'], description: 'Größe: small=16px, medium=32px, large=48px' }
+      },
+      required: ['position', 'size']
+    }
+  },
+  {
+    name: 'modifySpacer',
+    description: 'Ändert die Größe eines Spacers',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Spacers' },
+        size: { type: 'string', enum: ['small', 'medium', 'large'] }
+      },
+      required: ['position', 'size']
+    }
+  },
+  {
+    name: 'deleteSpacer',
+    description: 'Entfernt einen Spacer',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Spacers' }
+      },
+      required: ['position']
+    }
+  },
+  {
+    name: 'insertDivider',
+    description: 'Fügt eine horizontale Trennlinie ein',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position zum Einfügen' }
+      },
+      required: ['position']
+    }
+  },
+  {
+    name: 'deleteDivider',
+    description: 'Entfernt eine Trennlinie',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position der Trennlinie' }
+      },
+      required: ['position']
+    }
+  },
+  {
+    name: 'setTextColor',
+    description: 'Ändert die Textfarbe eines Absatzes/Überschrift',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Absatzes' },
+        color: { type: 'string', description: 'Farbe als Hex (#ef4444=rot, #22c55e=grün, #3b82f6=blau)' }
+      },
+      required: ['position', 'color']
+    }
+  },
+  {
+    name: 'setTextHighlight',
+    description: 'Markiert Text mit einer Hintergrundfarbe',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Absatzes' },
+        color: { type: 'string', description: 'Highlight-Farbe (#fef08a=gelb, #bbf7d0=grün, #bfdbfe=blau, #fbcfe8=pink)' }
+      },
+      required: ['position', 'color']
+    }
+  },
+  {
+    name: 'setTextBold',
+    description: 'Macht Text fett oder entfernt Fettschrift',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Absatzes' },
+        bold: { type: 'boolean', description: 'true=fett, false=normal' }
+      },
+      required: ['position', 'bold']
+    }
+  },
+  {
+    name: 'insertParagraph',
+    description: 'Fügt einen neuen Textabsatz ein',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position zum Einfügen' },
+        text: { type: 'string', description: 'Der Text' }
+      },
+      required: ['position', 'text']
+    }
+  },
+  {
+    name: 'modifyParagraph',
+    description: 'Ändert den Text eines Absatzes',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Absatzes' },
+        text: { type: 'string', description: 'Neuer Text' }
+      },
+      required: ['position', 'text']
+    }
+  },
+  {
+    name: 'deleteParagraph',
+    description: 'Löscht einen Absatz',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Absatzes' }
+      },
+      required: ['position']
+    }
+  },
+  {
+    name: 'insertHeading',
+    description: 'Fügt eine Überschrift ein',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position zum Einfügen' },
+        level: { type: 'number', enum: [1, 2], description: '1=H1, 2=H2' },
+        text: { type: 'string', description: 'Überschrift-Text' }
+      },
+      required: ['position', 'level', 'text']
+    }
+  },
+  {
+    name: 'insertBlockquote',
+    description: 'Fügt ein Zitat/Blockquote ein',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position zum Einfügen' },
+        text: { type: 'string', description: 'Zitat-Text' }
+      },
+      required: ['position', 'text']
+    }
+  },
+  {
+    name: 'deleteBlockquote',
+    description: 'Entfernt ein Zitat',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Zitats' }
+      },
+      required: ['position']
+    }
+  },
+  {
+    name: 'insertBulletList',
+    description: 'Fügt eine Aufzählungsliste ein',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position zum Einfügen' },
+        items: { type: 'array', items: { type: 'string' }, description: 'Liste der Punkte' }
+      },
+      required: ['position', 'items']
+    }
+  },
+  {
+    name: 'moveNode',
+    description: 'Verschiebt ein Element an eine andere Position',
+    parameters: {
+      type: 'object',
+      properties: {
+        fromPosition: { type: 'number', description: 'Aktuelle Position' },
+        toPosition: { type: 'number', description: 'Neue Position' }
+      },
+      required: ['fromPosition', 'toPosition']
+    }
+  },
+  {
+    name: 'deleteNode',
+    description: 'Löscht ein Element an einer Position',
+    parameters: {
+      type: 'object',
+      properties: {
+        position: { type: 'number', description: 'Position des Elements' }
+      },
+      required: ['position']
+    }
+  },
+  {
+    name: 'changeSubject',
+    description: 'Ändert den E-Mail-Betreff',
+    parameters: {
+      type: 'object',
+      properties: {
+        subject: { type: 'string', description: 'Neuer Betreff' }
+      },
+      required: ['subject']
+    }
+  }
+]
 
 const TIPTAP_SCHEMA = `
 TIPTAP JSON SCHEMA - Generiere valides TipTap JSON:
@@ -82,36 +336,99 @@ export async function POST(request: NextRequest) {
     
     const variablesList = variables.map(v => `{{${v}}}`).join(', ')
     
-    let systemPrompt: string
-    let userPrompt: string
-    
-    if (mode === 'continue' && existingContent) {
-      systemPrompt = `Du bist ein E-Mail-Editor-Assistent. Du bearbeitest bestehende E-Mails basierend auf Anweisungen.
+    // EDIT MODE: Use Function Calling for precise modifications
+    if (mode === 'edit' && existingContent) {
+      const contentDescription = describeContent(existingContent)
+      
+      const editSystemPrompt = `Du bist ein E-Mail-Editor-Assistent. Analysiere die Anweisung und rufe die passenden Funktionen auf.
 
-${TIPTAP_SCHEMA}
+AKTUELLER E-MAIL-INHALT:
+${contentDescription}
 
 REGELN:
-1. Behalte den bestehenden Content und modifiziere nur was der User anfragt
-2. Verwende diese Variablen wo sinnvoll: ${variablesList}
-3. Kein Footer/Abmeldelink - wird automatisch hinzugefügt
-4. Wenn User "Button hinzufügen" sagt, füge einen ctaButton Node hinzu
-5. Wenn User "Trennlinie" sagt, füge horizontalRule hinzu
-6. Wenn User "Abstand" sagt, füge spacer hinzu
-7. Für Zitate nutze blockquote
+- Rufe NUR die Funktionen auf, die für die Anweisung nötig sind
+- Ändere NICHTS, was nicht explizit angefragt wurde
+- Position 0 = erstes Element, Position -1 = am Ende einfügen
+- Für Buttons: #000000=schwarz, #2563eb=blau, #16a34a=grün
+- Für Text: #ef4444=rot, #22c55e=grün, #3b82f6=blau
+- Für Highlights: #fef08a=gelb, #bbf7d0=grün, #bfdbfe=blau`
 
-STIL: ${instruction || 'Freundlich und persönlich'}
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: editSystemPrompt },
+            { role: 'user', content: prompt }
+          ],
+          tools: EDIT_FUNCTIONS.map(f => ({ type: 'function', function: f })),
+          tool_choice: 'auto',
+          max_tokens: 1000
+        })
+      })
 
-Gib NUR valides JSON zurück: { "subject": "...", "content": { "type": "doc", "content": [...] } }`
+      if (!response.ok) {
+        const error = await response.text()
+        console.error('OpenAI API error:', error)
+        return NextResponse.json({ error: 'Fehler bei der KI-Generierung' }, { status: 500 })
+      }
 
-      userPrompt = `BESTEHENDE E-MAIL:
-Betreff: ${existingSubject || '(kein Betreff)'}
-Content: ${JSON.stringify(existingContent)}
+      const data = await response.json()
+      const message = data.choices?.[0]?.message
 
-ANWEISUNG: ${prompt}
+      // Process function calls
+      const toolCalls = message?.tool_calls || []
+      
+      if (toolCalls.length === 0) {
+        // No function calls - AI couldn't understand the request
+        return NextResponse.json({
+          error: 'Die Anweisung konnte nicht verstanden werden. Bitte sei spezifischer.'
+        }, { status: 400 })
+      }
 
-Gib die modifizierte E-Mail als JSON zurück.`
-    } else {
-      systemPrompt = `Du bist ein E-Mail-Marketing-Experte. Du generierst E-Mails als TipTap JSON.
+      // Convert tool calls to actions
+      const actions: EditorAction[] = []
+      let newSubject = existingSubject || ''
+
+      for (const call of toolCalls) {
+        const args = JSON.parse(call.function.arguments)
+        
+        // Handle changeSubject separately
+        if (call.function.name === 'changeSubject') {
+          newSubject = args.subject
+          continue
+        }
+        
+        // Handle position -1 (end)
+        if (args.position === -1) {
+          args.position = existingContent.content?.length || 0
+        }
+        
+        actions.push({
+          function: call.function.name,
+          args
+        })
+      }
+
+      // Execute actions on content
+      let newContent = existingContent as TiptapContent
+      if (actions.length > 0) {
+        newContent = executeActions(existingContent, actions)
+      }
+
+      return NextResponse.json({
+        subject: newSubject,
+        content: newContent,
+        actions // Include actions for debugging/display
+      })
+    }
+
+    // NEW MODE: Generate complete email
+    const systemPrompt = `Du bist ein E-Mail-Marketing-Experte. Du generierst E-Mails als TipTap JSON.
 
 ${TIPTAP_SCHEMA}
 
@@ -129,8 +446,7 @@ STIL: ${instruction || 'Freundlich und persönlich'}
 
 Gib NUR valides JSON zurück: { "subject": "...", "content": { "type": "doc", "content": [...] } }`
 
-      userPrompt = `Erstelle eine E-Mail für: ${prompt}`
-    }
+    const userPrompt = `Erstelle eine E-Mail für: ${prompt}`
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -188,4 +504,35 @@ Gib NUR valides JSON zurück: { "subject": "...", "content": { "type": "doc", "c
       { status: 500 }
     )
   }
+}
+
+// Hilfsfunktion: Content für AI beschreiben
+function describeContent(content: any): string {
+  if (!content?.content) return 'Leer'
+  
+  return content.content.map((node: any, index: number) => {
+    switch (node.type) {
+      case 'paragraph':
+        const pText = node.content?.map((c: any) => c.text || '').join('') || ''
+        return `[${index}] Absatz: "${pText.slice(0, 50)}${pText.length > 50 ? '...' : ''}"`
+      case 'heading':
+        const hText = node.content?.map((c: any) => c.text || '').join('') || ''
+        return `[${index}] Überschrift H${node.attrs?.level || 1}: "${hText}"`
+      case 'ctaButton':
+        return `[${index}] Button: "${node.attrs?.text}" (Farbe: ${node.attrs?.color}, URL: ${node.attrs?.href})`
+      case 'spacer':
+        return `[${index}] Spacer: ${node.attrs?.size}`
+      case 'horizontalRule':
+        return `[${index}] Trennlinie`
+      case 'blockquote':
+        const bqText = node.content?.[0]?.content?.map((c: any) => c.text || '').join('') || ''
+        return `[${index}] Zitat: "${bqText.slice(0, 50)}..."`
+      case 'bulletList':
+        return `[${index}] Aufzählung (${node.content?.length || 0} Punkte)`
+      case 'orderedList':
+        return `[${index}] Nummerierte Liste (${node.content?.length || 0} Punkte)`
+      default:
+        return `[${index}] ${node.type}`
+    }
+  }).join('\n')
 }

@@ -53,7 +53,9 @@ import {
   CalendarIcon,
   X,
   Sparkles,
-  BarChart3
+  BarChart3,
+  Tag,
+  FolderInput
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -75,12 +77,16 @@ import { SequenceTracking } from './sequence-tracking'
 
 interface Step {
   id: string
-  type: 'EMAIL' | 'DELAY'
+  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT'
   order: number
   subject?: string | null
   content?: any
   delayValue?: number | null
   delayUnit?: string | null
+  tagAction?: string | null
+  tagValue?: string | null
+  targetSegmentId?: string | null
+  segmentName?: string | null
 }
 
 interface Sequence {
@@ -247,7 +253,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
     }
   }
 
-  const addStep = async (type: 'EMAIL' | 'DELAY') => {
+  const addStep = async (type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT') => {
     const newStep: Step = {
       id: `temp-${Date.now()}`,
       type,
@@ -255,7 +261,11 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
       subject: type === 'EMAIL' ? 'Neuer Betreff' : null,
       content: type === 'EMAIL' ? { type: 'doc', content: [] } : null,
       delayValue: type === 'DELAY' ? 1 : null,
-      delayUnit: type === 'DELAY' ? 'days' : null
+      delayUnit: type === 'DELAY' ? 'days' : null,
+      tagAction: type === 'TAG' ? 'add' : null,
+      tagValue: type === 'TAG' ? '' : null,
+      targetSegmentId: type === 'SEGMENT' ? '' : null,
+      segmentName: null
     }
 
     try {
@@ -441,6 +451,14 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
               <Button variant="outline" size="sm" onClick={() => addStep('DELAY')}>
                 <Clock className="mr-2 h-4 w-4" />
                 Delay
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => addStep('TAG')}>
+                <Tag className="mr-2 h-4 w-4" />
+                Tag
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => addStep('SEGMENT')}>
+                <FolderInput className="mr-2 h-4 w-4" />
+                Segment
               </Button>
             </div>
           </div>

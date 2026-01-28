@@ -94,6 +94,20 @@ Haupt-Entitäten: Lead, Sequence, SequenceStep, SequenceState, Event, Settings
 - `src/lib/resend.ts` - Resend Integration
 - `prisma/schema.prisma` - Datenbank-Schema
 
+## Step-Editor (Sequenz-Steps)
+
+**Dokumentation:** `.factory/docs/step-editor.md`
+
+Step-Typen: EMAIL, DELAY, TAG, SEGMENT
+
+Relevante Dateien:
+- `src/components/sequences/sequence-editor.tsx` - Haupt-Editor
+- `src/components/sequences/step-card.tsx` - Step-Anzeige + Warnungen
+- `src/lib/sequence-validation.ts` - Validierung beim Aktivieren
+- `src/app/api/cron/process-sequences/route.ts` - Step-Ausführung
+
+Bei neuen Step-Typen: Siehe Dokumentation für Checkliste!
+
 ## Häufige Tasks
 
 - Neuer API Endpoint: `force-dynamic` bei PUT/DELETE

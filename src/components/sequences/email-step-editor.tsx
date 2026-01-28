@@ -40,12 +40,16 @@ import { AiEmailWriter } from './ai-email-writer'
 
 interface Step {
   id: string
-  type: 'EMAIL' | 'DELAY'
+  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT'
   order: number
   subject?: string | null
   content?: any
   delayValue?: number | null
   delayUnit?: string | null
+  tagAction?: string | null
+  tagValue?: string | null
+  targetSegmentId?: string | null
+  segmentName?: string | null
 }
 
 interface EmailStepEditorProps {

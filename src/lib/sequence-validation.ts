@@ -1,11 +1,14 @@
 interface Step {
   id: string
-  type: 'EMAIL' | 'DELAY'
+  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT'
   order: number
   subject?: string | null
   content?: { type: string; content?: unknown[] } | null
   delayValue?: number | null
   delayUnit?: string | null
+  tagAction?: string | null
+  tagValue?: string | null
+  targetSegmentId?: string | null
 }
 
 interface ValidationError {
@@ -98,6 +101,28 @@ export function validateSequence(steps: Step[]): ValidationError[] {
           stepIndex: i,
           stepId: step.id,
           message: `Zwei Delays hintereinander (Step ${i} und ${i + 1})`
+        })
+      }
+    }
+
+    if (step.type === 'TAG') {
+      // Tag ohne Wert
+      if (!step.tagValue || step.tagValue.trim() === '') {
+        errors.push({
+          stepIndex: i,
+          stepId: step.id,
+          message: `Tag ${i + 1} hat keinen Namen`
+        })
+      }
+    }
+
+    if (step.type === 'SEGMENT') {
+      // Segment ohne ID
+      if (!step.targetSegmentId || step.targetSegmentId.trim() === '') {
+        errors.push({
+          stepIndex: i,
+          stepId: step.id,
+          message: `Segment ${i + 1} hat kein Ziel-Segment`
         })
       }
     }

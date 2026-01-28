@@ -290,6 +290,72 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // Handle TAG step
+        if (currentStep.type === 'TAG' && currentStep.tagValue) {
+          const customFields = (state.lead.customFields as Record<string, unknown>) || {}
+          const tags = (customFields.tags as string[]) || []
+          
+          if (currentStep.tagAction === 'add') {
+            if (!tags.includes(currentStep.tagValue)) {
+              tags.push(currentStep.tagValue)
+            }
+          } else if (currentStep.tagAction === 'remove') {
+            const index = tags.indexOf(currentStep.tagValue)
+            if (index > -1) {
+              tags.splice(index, 1)
+            }
+          }
+
+          await db.lead.update({
+            where: { id: state.leadId },
+            data: {
+              customFields: { ...customFields, tags }
+            }
+          })
+
+          await db.event.create({
+            data: {
+              leadId: state.leadId,
+              type: 'TAG_UPDATED',
+              metadata: {
+                sequenceId: state.sequenceId,
+                stepId: currentStep.id,
+                action: currentStep.tagAction,
+                tag: currentStep.tagValue
+              }
+            }
+          })
+        }
+
+        // Handle SEGMENT step
+        if (currentStep.type === 'SEGMENT' && currentStep.targetSegmentId) {
+          await db.leadSegment.upsert({
+            where: {
+              leadId_segmentId: {
+                leadId: state.leadId,
+                segmentId: currentStep.targetSegmentId
+              }
+            },
+            create: {
+              leadId: state.leadId,
+              segmentId: currentStep.targetSegmentId
+            },
+            update: {}
+          })
+
+          await db.event.create({
+            data: {
+              leadId: state.leadId,
+              type: 'SEGMENT_ADDED',
+              metadata: {
+                sequenceId: state.sequenceId,
+                stepId: currentStep.id,
+                segmentId: currentStep.targetSegmentId
+              }
+            }
+          })
+        }
+
         // Move to next step
         const nextStepIndex = state.currentStepIndex + 1
         const nextStep = state.sequence.steps[nextStepIndex]

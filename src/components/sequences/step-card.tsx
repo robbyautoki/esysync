@@ -23,25 +23,29 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { Mail, Clock, GripVertical, Edit, Trash2, AlertTriangle } from 'lucide-react'
+import { Mail, Clock, GripVertical, Edit, Trash2, AlertTriangle, Tag, FolderInput } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Step {
   id: string
-  type: 'EMAIL' | 'DELAY'
+  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT'
   order: number
   subject?: string | null
   content?: any
   delayValue?: number | null
   delayUnit?: string | null
+  tagAction?: string | null
+  tagValue?: string | null
+  targetSegmentId?: string | null
+  segmentName?: string | null
 }
 
 interface StepCardProps {
   step: Step
   index: number
   isLast?: boolean
-  prevStepType?: 'EMAIL' | 'DELAY' | null
-  nextStepType?: 'EMAIL' | 'DELAY' | null
+  prevStepType?: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | null
+  nextStepType?: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | null
   onEdit: () => void
   onUpdate: (step: Step) => void
   onDelete: () => void
@@ -88,6 +92,12 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
   if (step.type === 'DELAY' && isLast) {
     warnings.push('Delay am Ende ist überflüssig')
   }
+  if (step.type === 'TAG' && !step.tagValue) {
+    warnings.push('Tag nicht gesetzt')
+  }
+  if (step.type === 'SEGMENT' && !step.targetSegmentId) {
+    warnings.push('Segment nicht gewählt')
+  }
   const hasWarning = warnings.length > 0
 
   return (
@@ -121,23 +131,27 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
       {/* Step Icon */}
       <div className={cn(
         "flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center",
-        step.type === 'EMAIL' ? "bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400" : "bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400"
+        step.type === 'EMAIL' && "bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
+        step.type === 'DELAY' && "bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400",
+        step.type === 'TAG' && "bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400",
+        step.type === 'SEGMENT' && "bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400"
       )}>
-        {step.type === 'EMAIL' ? (
-          <Mail className="h-5 w-5" />
-        ) : (
-          <Clock className="h-5 w-5" />
-        )}
+        {step.type === 'EMAIL' && <Mail className="h-5 w-5" />}
+        {step.type === 'DELAY' && <Clock className="h-5 w-5" />}
+        {step.type === 'TAG' && <Tag className="h-5 w-5" />}
+        {step.type === 'SEGMENT' && <FolderInput className="h-5 w-5" />}
       </div>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        {step.type === 'EMAIL' ? (
+        {step.type === 'EMAIL' && (
           <div>
             <p className="font-medium truncate">{step.subject || 'Kein Betreff'}</p>
             <p className="text-sm text-muted-foreground">E-Mail</p>
           </div>
-        ) : (
+        )}
+        
+        {step.type === 'DELAY' && (
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Warte</span>
             <Input
@@ -162,6 +176,39 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        )}
+
+        {step.type === 'TAG' && (
+          <div className="flex items-center gap-2">
+            <Select 
+              value={step.tagAction || 'add'} 
+              onValueChange={(value) => onUpdate({ ...step, tagAction: value })}
+            >
+              <SelectTrigger className="w-32 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="add">Hinzufügen</SelectItem>
+                <SelectItem value="remove">Entfernen</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input
+              type="text"
+              placeholder="Tag-Name"
+              value={step.tagValue || ''}
+              onChange={(e) => onUpdate({ ...step, tagValue: e.target.value })}
+              className="w-40 h-8"
+            />
+          </div>
+        )}
+
+        {step.type === 'SEGMENT' && (
+          <div>
+            <p className="font-medium truncate">
+              → {step.segmentName || 'Segment wählen...'}
+            </p>
+            <p className="text-sm text-muted-foreground">In Segment verschieben</p>
           </div>
         )}
       </div>

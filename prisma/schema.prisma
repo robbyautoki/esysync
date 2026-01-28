@@ -82,6 +82,13 @@ model SequenceStep {
   delayValue Int?
   delayUnit  String?
 
+  // Tag
+  tagAction String?  // "add" oder "remove"
+  tagValue  String?  // Tag-Name
+
+  // Segment
+  targetSegmentId String?
+
   // A/B Testing
   variants Json?
 
@@ -94,6 +101,8 @@ model SequenceStep {
 enum StepType {
   EMAIL
   DELAY
+  TAG
+  SEGMENT
 }
 
 model SequenceState {
@@ -138,6 +147,8 @@ enum EventType {
   EMAIL_CLICKED
   EMAIL_BOUNCED
   UNSUBSCRIBED
+  TAG_UPDATED
+  SEGMENT_ADDED
 }
 
 model Settings {

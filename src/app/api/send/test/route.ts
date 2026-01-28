@@ -64,6 +64,20 @@ function contentToHtml(content: any): string {
         const widthStyle = width ? `width: ${width}px; max-width: 100%;` : 'max-width: 100%;'
         return `<img src="${imgSrc}" alt="${imgAlt}" style="${widthStyle} height: auto; display: block; margin: 16px 0; border-radius: 8px;" />`
 
+      case 'ctaButton':
+        const btnText = node.attrs?.text || 'Button'
+        const btnHref = node.attrs?.href || '#'
+        const btnColor = node.attrs?.color || '#000000'
+        return `<div style="margin: 24px 0;"><a href="${btnHref}" style="display: inline-block; background-color: ${btnColor}; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">${btnText}</a></div>`
+
+      case 'spacer':
+        const sizes: Record<string, string> = { small: '16px', medium: '32px', large: '48px' }
+        const spacerSize = sizes[node.attrs?.size] || '32px'
+        return `<div style="height: ${spacerSize};"></div>`
+
+      case 'horizontalRule':
+        return `<hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />`
+
       default:
         if (node.content) {
           return node.content.map(renderNode).join('')

@@ -164,7 +164,8 @@ model Settings {
   warmupStartDate DateTime @default(now())
   apiKey          String?  // hashed API key
   apiKeyHint      String?  // last 4 chars for display
-  companyProfile  Json?    // { companyName, industry, targetAudience, tone, products, uniqueValue }
+  companyProfiles Json?    // [{ id, name, companyName, industry, targetAudience, tone, products, uniqueValue }]
+  activeProfileId String?  // ID des aktiven Profils
   updatedAt       DateTime @updatedAt
 }
 

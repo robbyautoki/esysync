@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Sheet,
   SheetContent,
@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Message } from '@/components/ai/message'
-import { Conversation, ConversationContent } from '@/components/ai/conversation'
+import { ConversationContent } from '@/components/ai/conversation'
 import { PromptInput } from '@/components/ai/prompt-input'
 import { Loader } from '@/components/ai/loader'
 import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, Globe, Zap, Search, User } from 'lucide-react'
@@ -42,6 +42,8 @@ interface ChatMessage {
 }
 
 interface CompanyProfile {
+  id: string
+  name: string
   companyName: string
   industry: string
   targetAudience: string
@@ -49,6 +51,21 @@ interface CompanyProfile {
   products?: string
   uniqueValue?: string
 }
+
+interface MarketingContext {
+  segments: Array<{ id: string; name: string; leadCount: number }>
+  tags: string[]
+  stats: { totalLeads: number; activeLeads: number; inactiveLeads: number }
+}
+
+const CAMPAIGN_GOALS = [
+  { id: 'welcome', label: 'Willkommen heißen', icon: '👋', description: 'Neue Abonnenten begrüßen' },
+  { id: 'winback', label: 'Zurückgewinnen', icon: '🔄', description: 'Inaktive reaktivieren' },
+  { id: 'nurturing', label: 'Leads pflegen', icon: '🌱', description: 'Zu Kunden machen' },
+  { id: 'retention', label: 'Kunden binden', icon: '💎', description: 'Nach dem Kauf' },
+  { id: 'promo', label: 'Verkaufen', icon: '🎯', description: 'Angebot bewerben' },
+  { id: 'custom', label: 'Eigenes Ziel', icon: '✨', description: 'Frei beschreiben' },
+]
 
 interface AISequenceChatProps {
   open: boolean
@@ -80,34 +97,43 @@ const ONBOARDING_QUESTIONS = [
   { key: 'tone', question: 'Welchen Ton sollen die E-Mails haben? (z.B. professionell, locker, freundlich)' },
 ]
 
-const QUICK_ACTIONS = [
-  { label: 'Willkommens-Serie', prompt: 'Erstelle eine Willkommens-Serie für neue Newsletter-Abonnenten mit 3-4 E-Mails' },
-  { label: 'Re-Engagement', prompt: 'Erstelle eine Re-Engagement-Kampagne für inaktive Kunden' },
-  { label: 'Onboarding', prompt: 'Erstelle eine Onboarding-Serie für neue Nutzer mit Produkt-Tipps' },
-  { label: 'Newsletter-Serie', prompt: 'Erstelle eine regelmäßige Newsletter-Serie mit wertvollen Inhalten' },
-]
-
 export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }: AISequenceChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
   const [generatedSteps, setGeneratedSteps] = useState<Step[]>([])
   const [selectedStepIds, setSelectedStepIds] = useState<Set<string>>(new Set())
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null)
+  const [allProfiles, setAllProfiles] = useState<CompanyProfile[]>([])
   const [profileLoading, setProfileLoading] = useState(true)
   const [onboardingStep, setOnboardingStep] = useState(0)
   const [onboardingAnswers, setOnboardingAnswers] = useState<Partial<CompanyProfile>>({})
-  const [showQuickActions, setShowQuickActions] = useState(false)
+  const [showGoalSelection, setShowGoalSelection] = useState(false)
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [researchMode, setResearchMode] = useState<'none' | 'quick' | 'deep' | 'confirm'>('none')
   const [researchResult, setResearchResult] = useState<CompanyProfile | null>(null)
   const [stepsLoading, setStepsLoading] = useState(false)
+  const [selectedModel, setSelectedModel] = useState('gpt-4o')
+  const [marketingContext, setMarketingContext] = useState<MarketingContext | null>(null)
 
-  // Lade Unternehmensprofil beim Öffnen
+  // Lade Profil und Marketing-Kontext beim Öffnen
   useEffect(() => {
     if (open) {
       loadProfile()
+      loadMarketingContext()
     }
   }, [open])
+
+  const loadMarketingContext = async () => {
+    try {
+      const res = await fetch('/api/ai/marketing-context')
+      if (res.ok) {
+        const data = await res.json()
+        setMarketingContext(data)
+      }
+    } catch {
+      // Silently fail - context is optional
+    }
+  }
 
   const loadProfile = async () => {
     setProfileLoading(true)
@@ -115,17 +141,17 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
       const res = await fetch('/api/settings')
       if (res.ok) {
         const data = await res.json()
-        if (data.companyProfile) {
-          setCompanyProfile(data.companyProfile)
-          setShowQuickActions(true)
-          // Begrüßung mit Profil
+        setAllProfiles(data.profiles || [])
+        
+        if (data.activeProfile) {
+          setCompanyProfile(data.activeProfile)
+          setShowGoalSelection(true)
           setMessages([{
             id: 'welcome',
             role: 'assistant',
-            content: `Hey ${data.companyProfile.companyName}! 👋\n\nWas für eine Kampagne möchtest du erstellen?`
+            content: `Hey ${data.activeProfile.companyName}! 👋\n\nWas möchtest du heute erreichen?`
           }])
         } else {
-          // Onboarding starten
           setMessages([{
             id: 'onboarding-start',
             role: 'assistant',
@@ -141,6 +167,43 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
     }
   }
 
+  const switchProfile = async (profileId: string) => {
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activeProfileId: profileId })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCompanyProfile(data.activeProfile)
+        setAllProfiles(data.profiles)
+        setShowGoalSelection(true)
+        setMessages([{
+          id: `switch-${Date.now()}`,
+          role: 'assistant',
+          content: `Alles klar, ich arbeite jetzt mit dem Profil "${data.activeProfile.companyName}"! 🔄\n\nWas möchtest du erreichen?`
+        }])
+        toast.success(`Profil gewechselt zu ${data.activeProfile.companyName}`)
+      }
+    } catch {
+      toast.error('Fehler beim Wechseln')
+    }
+  }
+
+  const startNewProfile = () => {
+    setCompanyProfile(null)
+    setOnboardingStep(0)
+    setOnboardingAnswers({})
+    setShowGoalSelection(false)
+    setResearchMode('none')
+    setMessages([{
+      id: 'new-profile',
+      role: 'assistant',
+      content: 'Lass uns ein neues Profil erstellen! 🆕\n\nWie möchtest du starten?'
+    }])
+  }
+
   const saveProfile = async (profile: CompanyProfile) => {
     try {
       await fetch('/api/settings', {
@@ -149,7 +212,8 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
         body: JSON.stringify({ companyProfile: profile })
       })
       setCompanyProfile(profile)
-      setShowQuickActions(true)
+      setAllProfiles(prev => [...prev, profile])
+      setShowGoalSelection(true)
       toast.success('Profil gespeichert!')
     } catch {
       toast.error('Fehler beim Speichern')
@@ -160,7 +224,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
     setCompanyProfile(null)
     setOnboardingStep(0)
     setOnboardingAnswers({})
-    setShowQuickActions(false)
+    setShowGoalSelection(false)
     setResearchMode('none')
     setMessages([{
       id: 'reset',
@@ -219,7 +283,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
         content: `Perfekt! 🎉 Jetzt können wir loslegen.\n\nWas für eine Kampagne möchtest du erstellen?`
       }])
       setResearchMode('none')
-      setShowQuickActions(true)
+      setShowGoalSelection(true)
     } else {
       setResearchMode('none')
       setMessages(prev => [...prev, {
@@ -240,8 +304,11 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
     setResearchMode('none')
   }
 
-  const handleQuickAction = (prompt: string) => {
-    setShowQuickActions(false)
+  const handleGoalSelect = (goalId: string) => {
+    setShowGoalSelection(false)
+    const goal = CAMPAIGN_GOALS.find(g => g.id === goalId)
+    if (!goal || goalId === 'custom') return
+    const prompt = `Erstelle eine ${goal.label}-Kampagne für mein Unternehmen`
     handleSubmit(prompt)
   }
 
@@ -410,17 +477,24 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                       </Message>
                     )}
 
-                    {/* Quick Actions nach Begrüßung */}
-                    {showQuickActions && !loading && (
-                      <div className="flex flex-wrap gap-2 mt-4">
-                        {QUICK_ACTIONS.map((action, i) => (
+                    {/* Goal Selection nach Begrüßung */}
+                    {showGoalSelection && !loading && (
+                      <div className="grid grid-cols-2 gap-2 mt-4">
+                        {CAMPAIGN_GOALS.map((goal) => (
                           <Button
-                            key={i}
+                            key={goal.id}
                             variant="outline"
                             size="sm"
-                            onClick={() => handleQuickAction(action.prompt)}
+                            className="h-auto py-3 px-4 flex flex-col items-start gap-1"
+                            onClick={() => handleGoalSelect(goal.id)}
                           >
-                            {action.label}
+                            <span className="flex items-center gap-2 text-sm font-medium">
+                              <span>{goal.icon}</span>
+                              {goal.label}
+                            </span>
+                            <span className="text-xs text-muted-foreground font-normal">
+                              {goal.description}
+                            </span>
                           </Button>
                         ))}
                       </div>

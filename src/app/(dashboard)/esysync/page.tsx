@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import {
   Table,
@@ -14,15 +13,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Loader2, RefreshCw, Download, Database, Users, AlertCircle } from 'lucide-react'
+import { Loader2, RefreshCw, Database, Users, AlertCircle, ArrowRightLeft } from 'lucide-react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 
 interface EsySyncUser {
   id: number
@@ -33,20 +26,12 @@ interface EsySyncUser {
   isVerified: boolean
 }
 
-interface Sequence {
-  id: string
-  name: string
-}
-
 export default function EsySyncPage() {
   const router = useRouter()
   const [users, setUsers] = useState<EsySyncUser[]>([])
-  const [sequences, setSequences] = useState<Sequence[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
-  const [importing, setImporting] = useState(false)
-  const [selectedSequence, setSelectedSequence] = useState<string>('')
+  const [syncing, setSyncing] = useState(false)
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -67,83 +52,36 @@ export default function EsySyncPage() {
     }
   }
 
-  const fetchSequences = async () => {
-    try {
-      const res = await fetch('/api/sequences')
-      const data = await res.json()
-      setSequences(data.sequences || [])
-    } catch {
-      // Ignore
-    }
-  }
-
   useEffect(() => {
     fetchUsers()
-    fetchSequences()
   }, [])
 
-  const toggleSelect = (id: number) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
-  }
-
-  const toggleSelectAll = () => {
-    if (selectedIds.size === users.length) {
-      setSelectedIds(new Set())
-    } else {
-      setSelectedIds(new Set(users.map(u => u.id)))
-    }
-  }
-
-  const handleImport = async () => {
-    if (selectedIds.size === 0) {
-      toast.error('Bitte wähle mindestens einen User aus')
-      return
-    }
-
-    setImporting(true)
+  const handleSync = async () => {
+    setSyncing(true)
     try {
-      const selectedUsers = users
-        .filter(u => selectedIds.has(u.id))
-        .map(u => ({
-          email: u.email,
-          firstName: u.firstName
-        }))
-
-      const res = await fetch('/api/esysync/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          users: selectedUsers,
-          sequenceId: selectedSequence || undefined
-        })
-      })
-
+      const res = await fetch('/api/esysync/sync', { method: 'POST' })
       const data = await res.json()
 
       if (!data.success) {
         throw new Error(data.error)
       }
 
+      const messages = []
+      if (data.imported > 0) messages.push(`${data.imported} neue Leads`)
+      if (data.addedToSegment > 0) messages.push(`${data.addedToSegment} zum Segment hinzugefügt`)
+      if (data.skippedUnsubscribed > 0) messages.push(`${data.skippedUnsubscribed} abgemeldet übersprungen`)
+      
       toast.success(
-        `${data.imported} Leads importiert` + 
-        (data.duplicates > 0 ? `, ${data.duplicates} Duplikate übersprungen` : '') +
-        (data.skippedUnsubscribed > 0 ? `, ${data.skippedUnsubscribed} abgemeldet` : '')
+        messages.length > 0 
+          ? `Sync erfolgreich: ${messages.join(', ')}`
+          : 'Sync erfolgreich - keine neuen Änderungen'
       )
-
-      setSelectedIds(new Set())
+      
       router.refresh()
     } catch (err: any) {
-      toast.error(err.message || 'Import fehlgeschlagen')
+      toast.error(err.message || 'Sync fehlgeschlagen')
     } finally {
-      setImporting(false)
+      setSyncing(false)
     }
   }
 
@@ -151,52 +89,42 @@ export default function EsySyncPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">EsySync Import</h1>
+          <h1 className="text-2xl font-bold tracking-tight">EsySync Übersicht</h1>
           <p className="text-muted-foreground">
-            Importiere User aus der EsySync Datenbank als Leads
+            Live-Ansicht der externen Datenbank. Synchronisierte Leads findest du im{' '}
+            <Link href="/leads?segment=esysync" className="text-purple-600 hover:underline">
+              EsySync-Segment
+            </Link>
           </p>
         </div>
-        <Button variant="outline" onClick={fetchUsers} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          Aktualisieren
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleSync} disabled={syncing || loading}>
+            {syncing ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <ArrowRightLeft className="h-4 w-4 mr-2" />
+            )}
+            Jetzt synchronisieren
+          </Button>
+          <Button variant="outline" onClick={fetchUsers} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Aktualisieren
+          </Button>
+        </div>
       </div>
 
-      {/* Import Actions */}
-      {selectedIds.size > 0 && (
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex items-center gap-4">
-              <Badge variant="secondary" className="text-sm">
-                {selectedIds.size} ausgewählt
-              </Badge>
-              
-              <Select value={selectedSequence} onValueChange={setSelectedSequence}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Sequenz (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Keine Sequenz</SelectItem>
-                  {sequences.map(seq => (
-                    <SelectItem key={seq.id} value={seq.id}>
-                      {seq.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button onClick={handleImport} disabled={importing}>
-                {importing ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4 mr-2" />
-                )}
-                Als Leads importieren
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {/* Info Card */}
+      <Card className="bg-purple-50/50 border-purple-200">
+        <CardContent className="py-4">
+          <div className="flex items-center gap-3">
+            <Badge className="bg-purple-100 text-purple-700 border-purple-300">esysync</Badge>
+            <p className="text-sm text-purple-700">
+              Alle synchronisierten User werden automatisch dem EsySync-Segment hinzugefügt. 
+              Du kannst das Segment in Sequenzen verwenden.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Users Table */}
       <Card>
@@ -233,14 +161,8 @@ export default function EsySyncPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedIds.size === users.length && users.length > 0}
-                        onCheckedChange={toggleSelectAll}
-                      />
-                    </TableHead>
                     <TableHead>Name</TableHead>
-                    <TableHead>Vorname (Import)</TableHead>
+                    <TableHead>Vorname</TableHead>
                     <TableHead>E-Mail</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
@@ -248,12 +170,6 @@ export default function EsySyncPage() {
                 <TableBody>
                   {users.map(user => (
                     <TableRow key={user.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedIds.has(user.id)}
-                          onCheckedChange={() => toggleSelect(user.id)}
-                        />
-                      </TableCell>
                       <TableCell className="font-medium">{user.fullName || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{user.firstName}</Badge>

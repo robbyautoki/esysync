@@ -70,6 +70,13 @@ interface Lead {
     events: number
     sequenceStates: number
   }
+  segments?: {
+    segment: {
+      id: string
+      name: string
+      color: string | null
+    }
+  }[]
 }
 
 interface LeadTableProps {
@@ -431,15 +438,29 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
                 </TableCell>
               </TableRow>
             ) : (
-              leads.map((lead) => (
-                <TableRow key={lead.id}>
+              leads.map((lead) => {
+                const isEsySync = lead.segments?.some(s => s.segment.id === 'esysync')
+                return (
+                <TableRow 
+                  key={lead.id}
+                  className={isEsySync ? 'bg-purple-50/50 border-l-2 border-l-purple-400' : ''}
+                >
                   <TableCell>
                     <Checkbox 
                       checked={selectedIds.includes(lead.id)}
                       onCheckedChange={() => toggleOne(lead.id)}
                     />
                   </TableCell>
-                  <TableCell className="font-medium">{lead.email}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      {lead.email}
+                      {isEsySync && (
+                        <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300 text-xs">
+                          esysync
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>{lead.firstName}</TableCell>
                   <TableCell>
                     <Badge variant={statusLabels[lead.status].variant}>
@@ -528,7 +549,7 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
                     </DropdownMenu>
                   </TableCell>
                 </TableRow>
-              ))
+              )})
             )}
           </TableBody>
         </Table>

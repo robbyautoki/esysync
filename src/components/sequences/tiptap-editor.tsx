@@ -7,6 +7,9 @@ import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import ImageResize from 'tiptap-extension-resize-image'
 import Placeholder from '@tiptap/extension-placeholder'
+import TextStyle from '@tiptap/extension-text-style'
+import { Color } from '@tiptap/extension-color'
+import Highlight from '@tiptap/extension-highlight'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -48,7 +51,10 @@ import {
   AlertTriangle,
   MousePointerClick,
   Minus,
-  MoveVertical
+  MoveVertical,
+  Palette,
+  Highlighter,
+  Quote
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -184,6 +190,11 @@ export function TiptapEditor({ content, onChange, onEditorReady }: TiptapEditorP
       }),
       CtaButton,
       Spacer,
+      TextStyle,
+      Color,
+      Highlight.configure({
+        multicolor: true,
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -420,8 +431,112 @@ export function TiptapEditor({ content, onChange, onEditorReady }: TiptapEditorP
           <TooltipContent>Kursiv (Cmd+I)</TooltipContent>
         </Tooltip>
 
+        {/* Text Color Dropdown */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Palette className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Textfarbe</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => editor.chain().focus().unsetColor().run()}>
+              <span className="w-4 h-4 rounded border mr-2 bg-black" />
+              Standard
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setColor('#6b7280').run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-gray-500" />
+              Grau
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setColor('#ef4444').run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-red-500" />
+              Rot
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setColor('#f97316').run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-orange-500" />
+              Orange
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setColor('#22c55e').run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-green-500" />
+              Grün
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setColor('#3b82f6').run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-blue-500" />
+              Blau
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setColor('#8b5cf6').run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-purple-500" />
+              Lila
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setColor('#ec4899').run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-pink-500" />
+              Pink
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {/* Highlight Dropdown */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Highlighter className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Markieren</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => editor.chain().focus().unsetHighlight().run()}>
+              <span className="w-4 h-4 rounded border mr-2" />
+              Keine
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setHighlight({ color: '#fef08a' }).run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-yellow-200" />
+              Gelb
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setHighlight({ color: '#bbf7d0' }).run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-green-200" />
+              Grün
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setHighlight({ color: '#bfdbfe' }).run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-blue-200" />
+              Blau
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setHighlight({ color: '#fbcfe8' }).run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-pink-200" />
+              Pink
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => editor.chain().focus().setHighlight({ color: '#e5e7eb' }).run()}>
+              <span className="w-4 h-4 rounded mr-2 bg-gray-200" />
+              Grau
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <div className="w-px h-6 bg-border mx-1" />
 
+        {/* Blockquote */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              className={cn(editor.isActive('blockquote') && 'bg-muted')}
+            >
+              <Quote className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Zitat</TooltipContent>
+        </Tooltip>
+
+        {/* Link */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

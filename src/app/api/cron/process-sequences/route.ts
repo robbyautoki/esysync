@@ -26,9 +26,20 @@ function contentToHtml(content: any): string {
             if (mark.type === 'bold') text = `<strong>${text}</strong>`
             if (mark.type === 'italic') text = `<em>${text}</em>`
             if (mark.type === 'link') text = `<a href="${mark.attrs.href}">${text}</a>`
+            if (mark.type === 'textStyle' && mark.attrs?.color) {
+              text = `<span style="color: ${mark.attrs.color};">${text}</span>`
+            }
+            if (mark.type === 'highlight') {
+              const bgColor = mark.attrs?.color || '#fef08a'
+              text = `<mark style="background-color: ${bgColor}; padding: 0 2px;">${text}</mark>`
+            }
           }
         }
         return text
+      
+      case 'blockquote':
+        const bqContent = node.content?.map(renderNode).join('') || ''
+        return `<blockquote style="border-left: 4px solid #e5e7eb; padding-left: 16px; margin: 16px 0; font-style: italic; color: #6b7280;">${bqContent}</blockquote>`
       
       case 'bulletList':
         const ulItems = node.content?.map(renderNode).join('') || ''

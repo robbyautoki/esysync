@@ -50,8 +50,21 @@ import {
   Loader2,
   Info,
   CalendarIcon,
-  X
+  X,
+  Sparkles,
+  BarChart3
 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { validateSequence, formatValidationErrors } from '@/lib/sequence-validation'
+import { SequenceAnalyticsSheet } from './sequence-analytics-sheet'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { StepCard } from './step-card'
@@ -100,6 +113,11 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
       : '09:00'
   )
   const [confirmActiveModal, setConfirmActiveModal] = useState(false)
+  const [dateModalOpen, setDateModalOpen] = useState(false)
+  const [aiDialogOpen, setAiDialogOpen] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiGenerating, setAiGenerating] = useState(false)
+  const [analyticsOpen, setAnalyticsOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -170,6 +188,16 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
   }
 
   const handleToggleActive = async () => {
+    // Validierung nur beim Aktivieren
+    if (!sequence.isActive) {
+      const errors = validateSequence(steps)
+      if (errors.length > 0) {
+        toast.error(formatValidationErrors(errors), { duration: 8000 })
+        setConfirmActiveModal(false)
+        return
+      }
+    }
+
     try {
       const res = await fetch(`/api/sequences/${sequence.id}`, {
         method: 'PUT',
@@ -184,6 +212,38 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
       router.refresh()
     } catch {
       toast.error('Aktion fehlgeschlagen')
+    }
+  }
+
+  const handleGenerateSteps = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error('Bitte beschreibe deine Kampagne')
+      return
+    }
+
+    setAiGenerating(true)
+    try {
+      const res = await fetch('/api/ai/generate-steps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          description: aiPrompt, 
+          sequenceId: sequence.id 
+        })
+      })
+
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error)
+
+      setSteps(data.steps)
+      markUnsaved()
+      setAiDialogOpen(false)
+      setAiPrompt('')
+      toast.success(`${data.steps.length} Steps generiert`)
+    } catch (error) {
+      toast.error('Fehler beim Generieren der Steps')
+    } finally {
+      setAiGenerating(false)
     }
   }
 
@@ -289,6 +349,23 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
               <span className="text-sm text-muted-foreground">
                 {sequence._count.states} Lead{sequence._count.states !== 1 ? 's' : ''}
               </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-2"
+                    onClick={() => setDateModalOpen(true)}
+                  >
+                    <CalendarIcon className="h-3.5 w-3.5 mr-1" />
+                    {scheduledDate 
+                      ? format(scheduledDate, 'dd.MM.yyyy', { locale: de })
+                      : 'Sofort'
+                    }
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Startdatum festlegen</TooltipContent>
+              </Tooltip>
             </div>
           </div>
         </div>
@@ -332,7 +409,22 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Sequenz-Steps</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base">Sequenz-Steps</CardTitle>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-7 w-7"
+                    onClick={() => setAiDialogOpen(true)}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Steps mit KI generieren</TooltipContent>
+              </Tooltip>
+            </div>
             <div className="flex gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -398,90 +490,10 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
         </CardContent>
       </Card>
 
-      {/* Leads in Sequence */}
-      <SequenceLeads sequenceId={sequence.id} />
-
       {/* Vorschau */}
       <SequencePreview sequenceId={sequence.id} />
 
-      {/* Startdatum */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-base">Startdatum</CardTitle>
-            <Tooltip>
-              <TooltipTrigger>
-                <Info className="h-4 w-4 text-muted-foreground" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                Wenn gesetzt, werden E-Mails erst ab diesem Datum versendet.
-                Ohne Startdatum startet die Sequenz sofort.
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <div className="flex gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className={cn(
-                      "w-[200px] justify-start text-left font-normal",
-                      !scheduledDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {scheduledDate ? format(scheduledDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={scheduledDate}
-                    onSelect={(date) => { setScheduledDate(date); markUnsaved() }}
-                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                    locale={de}
-                  />
-                </PopoverContent>
-              </Popover>
-              {scheduledDate && (
-                <>
-                  <Input
-                    type="time"
-                    value={scheduledTime}
-                    onChange={(e) => { setScheduledTime(e.target.value); markUnsaved() }}
-                    className="w-[120px]"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => { setScheduledDate(undefined); markUnsaved() }}
-                    title="Startdatum entfernen"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </>
-              )}
-            </div>
-            {scheduledDate && (
-              <p className="text-sm text-muted-foreground">
-                E-Mails werden ab {format(scheduledDate, 'dd.MM.yyyy', { locale: de })} um {scheduledTime} Uhr versendet
-              </p>
-            )}
-            {!scheduledDate && (
-              <p className="text-sm text-muted-foreground">
-                Sequenz startet sofort (kein Startdatum gesetzt)
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tracking */}
+      {/* Tracking - kompakt mit Analytics Icon */}
       <SequenceTracking 
         sequenceId={sequence.id}
         trackOpens={sequence.trackOpens}
@@ -490,25 +502,11 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
         onUpdate={(trackOpens, trackClicks, sendTime) => {
           setSequence(prev => ({ ...prev, trackOpens, trackClicks, sendTime }))
         }}
+        onOpenAnalytics={() => setAnalyticsOpen(true)}
       />
 
-      {/* Info */}
-      <Card className="bg-muted/50">
-        <CardContent className="py-4">
-          <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
-            <div className="text-sm text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Tipps</p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>Ziehe Steps per Drag & Drop um die Reihenfolge zu ändern</li>
-                <li>Nutze Variablen wie {"{{firstName}}"} und {"{{email}}"} in E-Mails</li>
-                <li>Füge Delays zwischen E-Mails ein um nicht zu spammen</li>
-                <li>Änderungen werden automatisch gespeichert</li>
-              </ul>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Leads in Sequence - ganz unten */}
+      <SequenceLeads sequenceId={sequence.id} />
 
       {/* Bestätigungsmodal für Aktivieren/Pausieren */}
       <AlertDialog open={confirmActiveModal} onOpenChange={setConfirmActiveModal}>
@@ -537,6 +535,126 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Startdatum Modal */}
+      <Dialog open={dateModalOpen} onOpenChange={setDateModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Startdatum</DialogTitle>
+            <DialogDescription>
+              Wenn gesetzt, werden E-Mails erst ab diesem Datum versendet.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      "flex-1 justify-start text-left font-normal",
+                      !scheduledDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {scheduledDate ? format(scheduledDate, 'dd.MM.yyyy', { locale: de }) : 'Datum wählen'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={scheduledDate}
+                    onSelect={(date) => { setScheduledDate(date); markUnsaved() }}
+                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    locale={de}
+                  />
+                </PopoverContent>
+              </Popover>
+              {scheduledDate && (
+                <Input
+                  type="time"
+                  value={scheduledTime}
+                  onChange={(e) => { setScheduledTime(e.target.value); markUnsaved() }}
+                  className="w-[120px]"
+                />
+              )}
+            </div>
+            {scheduledDate && (
+              <p className="text-sm text-muted-foreground">
+                E-Mails werden ab {format(scheduledDate, 'dd.MM.yyyy', { locale: de })} um {scheduledTime} Uhr versendet
+              </p>
+            )}
+          </div>
+          <DialogFooter className="flex-row gap-2 sm:justify-between">
+            {scheduledDate && (
+              <Button 
+                variant="ghost" 
+                onClick={() => { setScheduledDate(undefined); markUnsaved() }}
+              >
+                Entfernen
+              </Button>
+            )}
+            <Button onClick={() => setDateModalOpen(false)}>
+              Fertig
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* KI Steps Dialog */}
+      <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Steps mit KI generieren
+            </DialogTitle>
+            <DialogDescription>
+              Beschreibe deine Kampagne und die KI erstellt die Sequenz-Struktur für dich.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              placeholder={`Beispiel:\nMesse Onboarding Sequenz\n- 3 E-Mails über 2 Wochen\n- Tag 1: Willkommen + Recap\n- Tag 5: Produktvorstellung\n- Tag 14: Follow-up`}
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              className="min-h-[150px]"
+            />
+            {steps.length > 0 && (
+              <p className="text-sm text-orange-600 flex items-center gap-2">
+                <Info className="h-4 w-4" />
+                Bestehende {steps.length} Steps werden überschrieben
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAiDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleGenerateSteps} disabled={aiGenerating || !aiPrompt.trim()}>
+              {aiGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generiert...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Generieren
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Analytics Sheet */}
+      <SequenceAnalyticsSheet
+        open={analyticsOpen}
+        onOpenChange={setAnalyticsOpen}
+        sequence={sequence}
+      />
     </div>
   )
 }

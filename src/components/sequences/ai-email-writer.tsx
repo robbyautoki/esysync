@@ -47,6 +47,8 @@ import {
   updateInstruction,
   deleteInstruction
 } from '@/lib/ai-instructions'
+import { EmailPreview } from '@/components/email-render'
+import { convertToTiptap, parsePartialJson, getStreamedElements } from '@/lib/json-render-to-tiptap'
 
 interface AiEmailWriterProps {
   open: boolean
@@ -61,8 +63,10 @@ export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, ex
   const [selectedInstructionId, setSelectedInstructionId] = useState<string>('')
   const [prompt, setPrompt] = useState('')
   const [generating, setGenerating] = useState(false)
-  const [result, setResult] = useState<{ subject: string; content: any; actions?: any[] } | null>(null)
+  const [result, setResult] = useState<{ subject: string; content: any; elements?: any[]; actions?: any[] } | null>(null)
   const [mode, setMode] = useState<'new' | 'edit'>('new')
+  const [streamingText, setStreamingText] = useState('')
+  const [streamingElements, setStreamingElements] = useState<any[]>([])
   
   const hasExistingContent = existingContent?.content?.some((node: any) => 
     node.content?.some((child: any) => child.text?.trim()) || 
@@ -98,8 +102,38 @@ export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, ex
     
     setGenerating(true)
     setResult(null)
+    setStreamingText('')
+    setStreamingElements([])
     
     try {
+      // EDIT MODE: Non-streaming with function calling
+      if (mode === 'edit') {
+        const res = await fetch('/api/ai/generate-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            instruction: selectedInstruction?.prompt || '',
+            prompt,
+            variables: ['firstName', 'email'],
+            mode: 'edit',
+            existingContent,
+            existingSubject
+          })
+        })
+        
+        if (!res.ok) {
+          const error = await res.json()
+          throw new Error(error.error || 'Generierung fehlgeschlagen')
+        }
+        
+        const data = await res.json()
+        setResult(data)
+        toast.success('E-Mail bearbeitet!')
+        setGenerating(false)
+        return
+      }
+      
+      // NEW MODE: Streaming with json-render format
       const res = await fetch('/api/ai/generate-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,9 +141,8 @@ export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, ex
           instruction: selectedInstruction?.prompt || '',
           prompt,
           variables: ['firstName', 'email'],
-          mode,
-          existingContent: mode === 'edit' ? existingContent : undefined,
-          existingSubject: mode === 'edit' ? existingSubject : undefined
+          mode: 'new',
+          stream: true
         })
       })
       
@@ -118,9 +151,49 @@ export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, ex
         throw new Error(error.error || 'Generierung fehlgeschlagen')
       }
       
-      const data = await res.json()
-      setResult(data)
-      toast.success('E-Mail generiert!')
+      // Read streaming response
+      const reader = res.body?.getReader()
+      if (!reader) throw new Error('No response body')
+      
+      const decoder = new TextDecoder()
+      let fullText = ''
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        
+        const chunk = decoder.decode(value, { stream: true })
+        fullText += chunk
+        setStreamingText(fullText)
+        
+        // Parse partial JSON to extract elements for live preview
+        const parsed = parsePartialJson(fullText)
+        if (parsed) {
+          const elements = getStreamedElements(parsed)
+          if (elements.length > 0) {
+            setStreamingElements(elements)
+          }
+        }
+      }
+      
+      // Parse final result
+      try {
+        const finalResult = JSON.parse(fullText)
+        if (finalResult.subject && finalResult.elements) {
+          // Convert to TipTap format
+          const tiptapResult = convertToTiptap(finalResult)
+          setResult({
+            subject: tiptapResult.subject,
+            content: tiptapResult.content,
+            elements: finalResult.elements
+          })
+          toast.success('E-Mail generiert!')
+        } else {
+          throw new Error('Invalid response format')
+        }
+      } catch {
+        toast.error('Ungültige KI-Antwort')
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Fehler bei der Generierung')
     } finally {
@@ -433,9 +506,39 @@ export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, ex
               <Label>Vorschau</Label>
               
               {generating ? (
-                <div className="flex flex-col items-center justify-center h-[400px] border rounded-lg bg-muted/30">
-                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">KI schreibt E-Mail...</p>
+                <div className="border rounded-lg overflow-hidden">
+                  {/* Streaming Subject */}
+                  <div className="bg-muted/50 p-3 border-b">
+                    <p className="text-sm text-muted-foreground">Betreff:</p>
+                    <div className="flex items-center gap-2">
+                      {streamingText.includes('"subject"') ? (
+                        <p className="font-medium">
+                          {(() => {
+                            const match = streamingText.match(/"subject"\s*:\s*"([^"]*)"?/)
+                            return match ? match[1] : '...'
+                          })()}
+                        </p>
+                      ) : (
+                        <div className="h-5 w-48 bg-muted animate-pulse rounded" />
+                      )}
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                  </div>
+                  
+                  {/* Streaming Body */}
+                  <ScrollArea className="h-[350px]">
+                    <div className="p-4">
+                      {streamingElements.length > 0 ? (
+                        <EmailPreview elements={streamingElements} className="animate-in fade-in" />
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="h-4 w-3/4 bg-muted animate-pulse rounded" />
+                          <div className="h-4 w-full bg-muted animate-pulse rounded" />
+                          <div className="h-4 w-5/6 bg-muted animate-pulse rounded" />
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
                 </div>
               ) : result ? (
                 <div className="border rounded-lg overflow-hidden">
@@ -448,7 +551,11 @@ export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, ex
                   {/* Body */}
                   <ScrollArea className="h-[350px]">
                     <div className="p-4 text-sm leading-relaxed">
-                      {renderPreview(result.content)}
+                      {result.elements ? (
+                        <EmailPreview elements={result.elements} />
+                      ) : (
+                        renderPreview(result.content)
+                      )}
                     </div>
                   </ScrollArea>
                 </div>

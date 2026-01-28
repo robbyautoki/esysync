@@ -10,6 +10,7 @@ interface GenerateEmailRequest {
   existingContent?: any
   existingSubject?: string
   mode: 'new' | 'edit'
+  stream?: boolean
 }
 
 // OpenAI Function Definitions für Edit-Modus
@@ -316,7 +317,8 @@ export async function POST(request: NextRequest) {
       variables = ['firstName', 'email'],
       existingContent,
       existingSubject,
-      mode = 'new'
+      mode = 'new',
+      stream = false
     } = await request.json() as GenerateEmailRequest
     
     if (!prompt?.trim()) {
@@ -427,10 +429,44 @@ REGELN:
       })
     }
 
-    // NEW MODE: Generate complete email
-    const systemPrompt = `Du bist ein E-Mail-Marketing-Experte. Du generierst E-Mails als TipTap JSON.
+    // NEW MODE: Generate complete email with json-render format
+    const jsonRenderSchema = `
+VERFÜGBARE KOMPONENTEN (json-render Format):
 
-${TIPTAP_SCHEMA}
+1. Paragraph - Textabsatz
+   { "key": "eindeutig", "type": "Paragraph", "props": { "text": "..." } }
+   
+2. Heading - Überschrift
+   { "key": "eindeutig", "type": "Heading", "props": { "level": "1"|"2", "text": "..." } }
+   
+3. Button - CTA Button
+   { "key": "eindeutig", "type": "Button", "props": { "text": "...", "href": "https://...", "color": "black"|"blue"|"green" } }
+   
+4. Spacer - Vertikaler Abstand
+   { "key": "eindeutig", "type": "Spacer", "props": { "size": "small"|"medium"|"large" } }
+   
+5. Divider - Horizontale Trennlinie
+   { "key": "eindeutig", "type": "Divider", "props": {} }
+   
+6. Blockquote - Zitat
+   { "key": "eindeutig", "type": "Blockquote", "props": { "text": "..." } }
+   
+7. BulletList - Aufzählungsliste
+   { "key": "eindeutig", "type": "BulletList", "props": { "items": ["Punkt 1", "Punkt 2"] } }
+
+AUSGABE-FORMAT:
+{
+  "subject": "E-Mail Betreff",
+  "elements": [
+    { "key": "greeting", "type": "Paragraph", "props": { "text": "Hallo {{firstName}}," } },
+    ...weitere Elemente
+  ]
+}
+`
+
+    const systemPrompt = `Du bist ein E-Mail-Marketing-Experte. Du generierst E-Mails im json-render Format.
+
+${jsonRenderSchema}
 
 REGELN:
 1. Verwende Variablen: ${variablesList}
@@ -438,16 +474,93 @@ REGELN:
 3. Kein Footer/Abmeldelink - wird automatisch hinzugefügt
 4. 100-300 Wörter
 5. Vermeide Spam-Wörter (GRATIS, KOSTENLOS, JETZT KAUFEN)
-6. Nutze ctaButton für Call-to-Actions statt Links im Text
-7. Nutze spacer für visuelle Trennung vor Buttons
-8. Nutze blockquote für Zitate/Testimonials
+6. Nutze Button für Call-to-Actions
+7. Nutze Spacer vor Buttons für bessere Optik
+8. Jedes Element braucht einen eindeutigen "key"
 
 STIL: ${instruction || 'Freundlich und persönlich'}
 
-Gib NUR valides JSON zurück: { "subject": "...", "content": { "type": "doc", "content": [...] } }`
+Gib NUR valides JSON zurück mit subject und elements Array.`
 
     const userPrompt = `Erstelle eine E-Mail für: ${prompt}`
 
+    // STREAMING MODE
+    if (stream) {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${openaiKey}`
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+          ],
+          max_tokens: 2000,
+          temperature: 0.7,
+          stream: true
+        })
+      })
+
+      if (!response.ok) {
+        return NextResponse.json({ error: 'Fehler bei der KI-Generierung' }, { status: 500 })
+      }
+
+      // Stream the response
+      const encoder = new TextEncoder()
+      const readable = new ReadableStream({
+        async start(controller) {
+          const reader = response.body?.getReader()
+          if (!reader) {
+            controller.close()
+            return
+          }
+
+          const decoder = new TextDecoder()
+          let buffer = ''
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+
+              buffer += decoder.decode(value, { stream: true })
+              const lines = buffer.split('\n')
+              buffer = lines.pop() || ''
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6)
+                  if (data === '[DONE]') continue
+                  
+                  try {
+                    const parsed = JSON.parse(data)
+                    const content = parsed.choices?.[0]?.delta?.content
+                    if (content) {
+                      controller.enqueue(encoder.encode(content))
+                    }
+                  } catch {}
+                }
+              }
+            }
+          } finally {
+            controller.close()
+          }
+        }
+      })
+
+      return new Response(readable, {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Transfer-Encoding': 'chunked',
+          'Cache-Control': 'no-cache'
+        }
+      })
+    }
+
+    // NON-STREAMING MODE (fallback)
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -481,13 +594,14 @@ Gib NUR valides JSON zurück: { "subject": "...", "content": { "type": "doc", "c
     try {
       const parsed = JSON.parse(content)
       
-      if (!parsed.subject || !parsed.content) {
-        throw new Error('Missing subject or content')
+      if (!parsed.subject || !parsed.elements) {
+        throw new Error('Missing subject or elements')
       }
       
       return NextResponse.json({
         subject: parsed.subject,
-        content: parsed.content
+        elements: parsed.elements,
+        format: 'json-render'
       })
     } catch (e) {
       console.error('Failed to parse OpenAI response:', content)

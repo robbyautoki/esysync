@@ -26,9 +26,9 @@ const navigation = [
   { name: 'Sequenzen', href: '/sequences', icon: Mail, description: 'E-Mail-Sequenzen erstellen' },
   { name: 'Formulare', href: '/forms', icon: FileText, description: 'Anmeldeformulare erstellen' },
   { name: 'Abmeldungen', href: '/unsubscribes', icon: UserMinus, description: 'Abmeldungen und Feedback' },
-  { name: 'EsySync', href: '/esysync', icon: Database, description: 'User aus EsySync importieren' },
 ]
 
+const esysyncItem = { name: 'ESYSYNC DB', href: '/esysync', icon: Database, description: 'User aus EsySync importieren' }
 const settingsItem = { name: 'Einstellungen', href: '/settings', icon: Settings, description: 'App konfigurieren' }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -98,9 +98,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          {/* Bottom section with settings */}
+          {/* Bottom section with ESYSYNC DB and settings */}
           <div className="absolute bottom-4 left-4 right-4 space-y-3">
-            <div className="border-t pt-3">
+            <div className="border-t pt-3 space-y-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={esysyncItem.href}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
+                      pathname === esysyncItem.href || pathname.startsWith(esysyncItem.href)
+                        ? "bg-primary text-primary-foreground" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <esysyncItem.icon className="w-4 h-4" />
+                    {esysyncItem.name}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {esysyncItem.description}
+                </TooltipContent>
+              </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link

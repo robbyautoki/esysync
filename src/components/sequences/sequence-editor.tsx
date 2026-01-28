@@ -25,6 +25,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import { cn } from '@/lib/utils'
@@ -89,6 +99,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
       ? format(new Date(initialSequence.scheduledStartAt), 'HH:mm')
       : '09:00'
   )
+  const [confirmActiveModal, setConfirmActiveModal] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -288,7 +299,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={handleToggleActive}
+                onClick={() => setConfirmActiveModal(true)}
               >
                 {sequence.isActive ? (
                   <><Pause className="mr-2 h-4 w-4" /> Pausieren</>
@@ -498,6 +509,34 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
           </div>
         </CardContent>
       </Card>
+
+      {/* Bestätigungsmodal für Aktivieren/Pausieren */}
+      <AlertDialog open={confirmActiveModal} onOpenChange={setConfirmActiveModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {sequence.isActive ? 'Sequenz pausieren?' : 'Sequenz aktivieren?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {sequence.isActive 
+                ? 'Neue Leads werden nicht mehr automatisch hinzugefügt. Bestehende Leads in der Sequenz erhalten weiterhin ihre geplanten E-Mails.'
+                : 'Die Sequenz wird für neue Leads aktiviert. Leads die den Trigger erfüllen werden automatisch hinzugefügt und erhalten die E-Mails.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                handleToggleActive()
+                setConfirmActiveModal(false)
+              }}
+              className={sequence.isActive ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'}
+            >
+              {sequence.isActive ? 'Pausieren' : 'Aktivieren'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

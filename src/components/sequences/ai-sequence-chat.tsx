@@ -17,7 +17,8 @@ import { Message } from '@/components/ai/message'
 import { Conversation, ConversationContent } from '@/components/ai/conversation'
 import { PromptInput } from '@/components/ai/prompt-input'
 import { Loader } from '@/components/ai/loader'
-import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, RefreshCw, Globe, Zap, Search } from 'lucide-react'
+import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, Globe, Zap, Search, User } from 'lucide-react'
+import { ModelSelector } from '@/components/ai/model-selector'
 import { toast } from 'sonner'
 
 interface Step {
@@ -380,19 +381,11 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[80vh] flex flex-col p-0">
-        <SheetHeader className="px-6 py-4 border-b flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              KI Sequenz-Builder
-            </SheetTitle>
-            {companyProfile && (
-              <Button variant="ghost" size="sm" onClick={resetProfile}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Profil ändern
-              </Button>
-            )}
-          </div>
+        <SheetHeader className="px-8 md:px-12 py-4 border-b flex-shrink-0">
+          <SheetTitle className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            KI Sequenz-Builder
+          </SheetTitle>
         </SheetHeader>
 
         <div className="flex-1 flex overflow-hidden">
@@ -405,7 +398,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
             ) : (
               <>
                 <ScrollArea className="flex-1">
-                  <ConversationContent className="px-6">
+                  <ConversationContent className="px-8 md:px-12 lg:px-16 max-w-3xl mx-auto">
                     {messages.map(msg => (
                       <Message key={msg.id} role={msg.role}>
                         {msg.content}
@@ -504,11 +497,27 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                     )}
                   </ConversationContent>
                 </ScrollArea>
-                <div className="px-6 pb-4">
+                <div className="px-8 md:px-12 lg:px-16 pb-6 max-w-3xl mx-auto w-full">
                   <PromptInput 
                     onSubmit={handleSubmit}
                     placeholder={!companyProfile ? 'Antwort eingeben...' : 'Beschreibe deine Kampagne...'}
                     loading={loading}
+                    actions={
+                      <>
+                        {companyProfile && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 gap-2 text-muted-foreground hover:text-foreground"
+                            onClick={resetProfile}
+                          >
+                            <User className="w-4 h-4" />
+                            <span className="text-sm">Profil</span>
+                          </Button>
+                        )}
+                        <ModelSelector disabled={loading} />
+                      </>
+                    }
                   />
                 </div>
               </>

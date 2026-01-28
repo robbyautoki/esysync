@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect, KeyboardEvent } from 'react'
+import { useState, useRef, useEffect, KeyboardEvent, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Send, Loader2 } from 'lucide-react'
+import { SendHorizontal, Loader2 } from 'lucide-react'
 
 interface PromptInputProps {
   onSubmit: (value: string) => void
@@ -12,6 +12,7 @@ interface PromptInputProps {
   disabled?: boolean
   loading?: boolean
   className?: string
+  actions?: ReactNode
 }
 
 export function PromptInput({ 
@@ -19,12 +20,12 @@ export function PromptInput({
   placeholder = 'Nachricht eingeben...', 
   disabled = false,
   loading = false,
-  className 
+  className,
+  actions
 }: PromptInputProps) {
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
@@ -46,29 +47,36 @@ export function PromptInput({
   }
 
   return (
-    <div className={cn('flex gap-2 items-end p-4 border-t bg-background', className)}>
-      <Textarea
-        ref={textareaRef}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        disabled={disabled || loading}
-        className="min-h-[44px] max-h-[200px] resize-none"
-        rows={1}
-      />
-      <Button 
-        onClick={handleSubmit}
-        disabled={!value.trim() || disabled || loading}
-        size="icon"
-        className="flex-shrink-0"
-      >
-        {loading ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <Send className="w-4 h-4" />
-        )}
-      </Button>
+    <div className={cn('border rounded-xl bg-background shadow-sm', className)}>
+      <div className="flex items-end gap-2 p-3">
+        <Textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled || loading}
+          className="min-h-[44px] max-h-[200px] resize-none border-0 focus-visible:ring-0 shadow-none p-0"
+          rows={1}
+        />
+        <Button 
+          onClick={handleSubmit}
+          disabled={!value.trim() || disabled || loading}
+          size="icon"
+          className="flex-shrink-0 h-9 w-9 rounded-lg"
+        >
+          {loading ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <SendHorizontal className="w-4 h-4" />
+          )}
+        </Button>
+      </div>
+      {actions && (
+        <div className="flex items-center gap-1 px-3 pb-3 pt-0 border-t-0">
+          {actions}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { SequenceTable } from './sequence-table'
+import { FolderAccordion } from './folder-accordion'
 import { SequenceAnalyticsSheet } from './sequence-analytics-sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -24,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Trash2, X, AlertTriangle, Loader2, FolderPlus } from 'lucide-react'
+import { Trash2, X, AlertTriangle, Loader2, FolderPlus, Folder } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface SequenceFolder {
@@ -199,6 +201,11 @@ export function SequencesPageClient({ sequences, folders }: SequencesPageClientP
     }
   }
 
+  // Sequences without folder
+  const unfolderedSequences = useMemo(() => {
+    return sequences.filter(s => !s.folderId)
+  }, [sequences])
+
   return (
     <>
       {/* Actions Bar */}
@@ -238,17 +245,50 @@ export function SequencesPageClient({ sequences, folders }: SequencesPageClientP
         )}
       </div>
 
-      <SequenceTable
-        sequences={sequences}
-        folders={folders}
-        selectedIds={selectedIds}
-        onSelectionChange={setSelectedIds}
-        onOpenAnalytics={handleOpenAnalytics}
-        onUpdateColor={handleUpdateSequenceColor}
-        onUpdateFolder={handleUpdateSequenceFolder}
-        onDeleteFolder={handleDeleteFolder}
-        onRenameFolder={handleRenameFolder}
-      />
+      <div className="space-y-6">
+        {/* Folders Section */}
+        {folders.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Folder className="h-4 w-4" />
+                Ordner
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <FolderAccordion
+                folders={folders}
+                sequences={sequences}
+                onUpdateColor={handleUpdateSequenceColor}
+                onUpdateFolder={handleUpdateSequenceFolder}
+                onDeleteFolder={handleDeleteFolder}
+                onRenameFolder={handleRenameFolder}
+                onOpenAnalytics={handleOpenAnalytics}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Unfoldered Sequences */}
+        {unfolderedSequences.length > 0 && (
+          <div>
+            {folders.length > 0 && (
+              <h3 className="text-sm font-medium mb-3 text-muted-foreground">
+                Sequenzen ohne Ordner
+              </h3>
+            )}
+            <SequenceTable
+              sequences={unfolderedSequences}
+              folders={folders}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              onOpenAnalytics={handleOpenAnalytics}
+              onUpdateColor={handleUpdateSequenceColor}
+              onUpdateFolder={handleUpdateSequenceFolder}
+            />
+          </div>
+        )}
+      </div>
 
       <SequenceAnalyticsSheet
         open={analyticsOpen}

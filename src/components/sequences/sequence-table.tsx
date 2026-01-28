@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   Table,
@@ -11,7 +11,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -20,14 +19,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { BarChart3, Mail, Users, ChevronDown, ChevronRight, Folder, MoreHorizontal, Pencil, Trash2, Check } from 'lucide-react'
+import { BarChart3, Mail, Users, Check } from 'lucide-react'
 import { formatRelativeDate } from '@/lib/utils'
 import { SequenceActions } from './sequence-actions'
 
@@ -45,8 +37,6 @@ const COLORS = [
 interface SequenceFolder {
   id: string
   name: string
-  color: string | null
-  order: number
 }
 
 interface Sequence {
@@ -70,8 +60,6 @@ interface SequenceTableProps {
   onOpenAnalytics: (sequence: Sequence) => void
   onUpdateColor: (sequenceId: string, color: string | null) => void
   onUpdateFolder: (sequenceId: string, folderId: string | null) => void
-  onDeleteFolder: (folderId: string) => void
-  onRenameFolder: (folderId: string, name: string) => void
 }
 
 const triggerLabels: Record<string, string> = {
@@ -80,23 +68,10 @@ const triggerLabels: Record<string, string> = {
   API_WEBHOOK: 'API/Webhook'
 }
 
-function ColorDot({ 
-  color, 
-  onClick, 
-  disabled = false 
-}: { 
-  color: string | null
-  onClick?: () => void
-  disabled?: boolean 
-}) {
+function ColorDot({ color }: { color: string | null }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`w-3 h-3 rounded-full flex-shrink-0 ${
-        disabled ? 'cursor-default' : 'cursor-pointer hover:scale-125 transition-transform'
-      }`}
+    <div
+      className="w-3 h-3 rounded-full flex-shrink-0"
       style={{ backgroundColor: color || '#a1a1aa' }}
     />
   )
@@ -114,13 +89,13 @@ function ColorPicker({
   const [open, setOpen] = useState(false)
 
   if (disabled) {
-    return <ColorDot color={currentColor} disabled />
+    return <ColorDot color={currentColor} />
   }
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button">
+        <button type="button" className="hover:scale-125 transition-transform">
           <ColorDot color={currentColor} />
         </button>
       </PopoverTrigger>
@@ -151,94 +126,6 @@ function ColorPicker({
   )
 }
 
-function FolderRow({
-  folder,
-  isExpanded,
-  onToggle,
-  sequenceCount,
-  onDelete,
-  onRename,
-}: {
-  folder: SequenceFolder
-  isExpanded: boolean
-  onToggle: () => void
-  sequenceCount: number
-  onDelete: () => void
-  onRename: (name: string) => void
-}) {
-  const [isEditing, setIsEditing] = useState(false)
-  const [editName, setEditName] = useState(folder.name)
-
-  const handleRename = () => {
-    if (editName.trim() && editName !== folder.name) {
-      onRename(editName.trim())
-    }
-    setIsEditing(false)
-  }
-
-  return (
-    <TableRow className="bg-muted/30 hover:bg-muted/50">
-      <TableCell colSpan={9}>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onToggle}
-            className="p-1 hover:bg-muted rounded"
-          >
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </button>
-          <Folder className="h-4 w-4 text-muted-foreground" />
-          {isEditing ? (
-            <Input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              onBlur={handleRename}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleRename()
-                if (e.key === 'Escape') setIsEditing(false)
-              }}
-              className="h-7 w-48"
-              autoFocus
-            />
-          ) : (
-            <span className="font-medium">{folder.name}</span>
-          )}
-          <Badge variant="secondary" className="ml-2">
-            {sequenceCount}
-          </Badge>
-          <div className="ml-auto">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Umbenennen
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={onDelete}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Löschen
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </TableCell>
-    </TableRow>
-  )
-}
-
 export function SequenceTable({ 
   sequences, 
   folders,
@@ -247,14 +134,7 @@ export function SequenceTable({
   onOpenAnalytics,
   onUpdateColor,
   onUpdateFolder,
-  onDeleteFolder,
-  onRenameFolder,
 }: SequenceTableProps) {
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
-    // Start with all folders expanded
-    return new Set(folders.map(f => f.id))
-  })
-
   const allSelected = sequences.length > 0 && selectedIds.length === sequences.length
   const someSelected = selectedIds.length > 0 && selectedIds.length < sequences.length
 
@@ -272,111 +152,6 @@ export function SequenceTable({
     } else {
       onSelectionChange([...selectedIds, id])
     }
-  }
-
-  const toggleFolder = (folderId: string) => {
-    setExpandedFolders(prev => {
-      const next = new Set(prev)
-      if (next.has(folderId)) {
-        next.delete(folderId)
-      } else {
-        next.add(folderId)
-      }
-      return next
-    })
-  }
-
-  // Group sequences by folder
-  const { folderGroups, unfoldered } = useMemo(() => {
-    const groups = new Map<string, Sequence[]>()
-    const noFolder: Sequence[] = []
-
-    sequences.forEach(seq => {
-      if (seq.folderId) {
-        const existing = groups.get(seq.folderId) || []
-        existing.push(seq)
-        groups.set(seq.folderId, existing)
-      } else {
-        noFolder.push(seq)
-      }
-    })
-
-    return { folderGroups: groups, unfoldered: noFolder }
-  }, [sequences])
-
-  const renderSequenceRow = (sequence: Sequence, indented = false) => {
-    const emailSteps = (sequence.steps ?? []).filter(s => s.type === 'EMAIL').length
-    // EsySync sequences automatically get purple color
-    const isEsySync = sequence.name.toLowerCase().includes('esysync')
-    const displayColor = isEsySync ? '#8b5cf6' : sequence.color
-
-    return (
-      <TableRow key={sequence.id} data-state={selectedIds.includes(sequence.id) ? 'selected' : undefined}>
-        <TableCell className={indented ? 'pl-10' : ''}>
-          <div className="flex items-center gap-3">
-            <Checkbox
-              checked={selectedIds.includes(sequence.id)}
-              onCheckedChange={() => toggleOne(sequence.id)}
-              aria-label={`${sequence.name} auswählen`}
-            />
-            <ColorPicker
-              currentColor={displayColor}
-              onSelect={(color) => onUpdateColor(sequence.id, color)}
-              disabled={isEsySync}
-            />
-          </div>
-        </TableCell>
-        <TableCell className="font-medium">
-          <Link
-            href={`/sequences/${sequence.id}`}
-            className="hover:underline"
-          >
-            {sequence.name}
-          </Link>
-          {isEsySync && (
-            <Badge variant="outline" className="ml-2 text-xs bg-purple-50 text-purple-700 border-purple-200">
-              EsySync
-            </Badge>
-          )}
-        </TableCell>
-        <TableCell>
-          <Badge variant={sequence.isActive ? 'success' : 'secondary'}>
-            {sequence.isActive ? 'Aktiv' : 'Inaktiv'}
-          </Badge>
-        </TableCell>
-        <TableCell>
-          <Badge variant="outline">
-            {triggerLabels[sequence.trigger] || sequence.trigger}
-          </Badge>
-        </TableCell>
-        <TableCell>{emailSteps}</TableCell>
-        <TableCell>{sequence._count.states}</TableCell>
-        <TableCell className="text-muted-foreground">
-          {formatRelativeDate(sequence.createdAt)}
-        </TableCell>
-        <TableCell>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onOpenAnalytics(sequence)}
-              >
-                <BarChart3 className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Analytics anzeigen</TooltipContent>
-          </Tooltip>
-        </TableCell>
-        <TableCell>
-          <SequenceActions 
-            sequence={sequence} 
-            folders={folders}
-            onMoveToFolder={(folderId) => onUpdateFolder(sequence.id, folderId)}
-          />
-        </TableCell>
-      </TableRow>
-    )
   }
 
   return (
@@ -431,38 +206,79 @@ export function SequenceTable({
               </TableCell>
             </TableRow>
           ) : (
-            <>
-              {/* Folders */}
-              {folders.map(folder => {
-                const folderSequences = folderGroups.get(folder.id) || []
-                const isExpanded = expandedFolders.has(folder.id)
+            sequences.map((sequence) => {
+              const emailSteps = (sequence.steps ?? []).filter(s => s.type === 'EMAIL').length
+              const isEsySync = sequence.name.toLowerCase().includes('esysync')
+              const displayColor = isEsySync ? '#8b5cf6' : sequence.color
 
-                return (
-                  <> 
-                    <FolderRow
-                      key={folder.id}
-                      folder={folder}
-                      isExpanded={isExpanded}
-                      onToggle={() => toggleFolder(folder.id)}
-                      sequenceCount={folderSequences.length}
-                      onDelete={() => onDeleteFolder(folder.id)}
-                      onRename={(name) => onRenameFolder(folder.id, name)}
+              return (
+                <TableRow key={sequence.id} data-state={selectedIds.includes(sequence.id) ? 'selected' : undefined}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={selectedIds.includes(sequence.id)}
+                        onCheckedChange={() => toggleOne(sequence.id)}
+                        aria-label={`${sequence.name} auswählen`}
+                      />
+                      <ColorPicker
+                        currentColor={displayColor}
+                        onSelect={(color) => onUpdateColor(sequence.id, color)}
+                        disabled={isEsySync}
+                      />
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    <Link
+                      href={`/sequences/${sequence.id}`}
+                      className="hover:underline"
+                    >
+                      {sequence.name}
+                    </Link>
+                    {isEsySync && (
+                      <Badge variant="outline" className="ml-2 text-xs bg-purple-50 text-purple-700 border-purple-200">
+                        EsySync
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={sequence.isActive ? 'success' : 'secondary'}>
+                      {sequence.isActive ? 'Aktiv' : 'Inaktiv'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {triggerLabels[sequence.trigger] || sequence.trigger}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{emailSteps}</TableCell>
+                  <TableCell>{sequence._count.states}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {formatRelativeDate(sequence.createdAt)}
+                  </TableCell>
+                  <TableCell>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onOpenAnalytics(sequence)}
+                        >
+                          <BarChart3 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Analytics anzeigen</TooltipContent>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell>
+                    <SequenceActions 
+                      sequence={sequence} 
+                      folders={folders}
+                      onMoveToFolder={(folderId) => onUpdateFolder(sequence.id, folderId)}
                     />
-                    {isExpanded && folderSequences.map(seq => renderSequenceRow(seq, true))}
-                  </>
-                )
-              })}
-
-              {/* Unfoldered sequences */}
-              {unfoldered.length > 0 && folders.length > 0 && (
-                <TableRow className="bg-muted/20">
-                  <TableCell colSpan={9}>
-                    <span className="text-sm text-muted-foreground">Ohne Ordner</span>
                   </TableCell>
                 </TableRow>
-              )}
-              {unfoldered.map(seq => renderSequenceRow(seq, false))}
-            </>
+              )
+            })
           )}
         </TableBody>
       </Table>

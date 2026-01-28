@@ -20,6 +20,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -404,60 +405,61 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
         </div>
       </div>
 
-      {/* Steps */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+      {/* Tabs */}
+      <Tabs defaultValue="steps" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="steps">Steps</TabsTrigger>
+          <TabsTrigger value="settings">Einstellungen</TabsTrigger>
+          <TabsTrigger value="leads">
+            Leads ({sequence._count.states})
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Steps Tab */}
+        <TabsContent value="steps" className="mt-6">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-base">Sequenz-Steps</CardTitle>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
                     variant="ghost" 
-                    size="icon" 
-                    className="h-7 w-7"
+                    size="sm"
                     onClick={() => setAiDialogOpen(true)}
                   >
-                    <Sparkles className="h-4 w-4" />
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    KI generieren
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Steps mit KI generieren</TooltipContent>
               </Tooltip>
             </div>
             <div className="flex gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => addStep('EMAIL')}>
-                    <Mail className="mr-2 h-4 w-4" />
-                    E-Mail
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>E-Mail-Step hinzufügen</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => addStep('DELAY')}>
-                    <Clock className="mr-2 h-4 w-4" />
-                    Delay
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Wartezeit hinzufügen</TooltipContent>
-              </Tooltip>
+              <Button variant="outline" size="sm" onClick={() => addStep('EMAIL')}>
+                <Mail className="mr-2 h-4 w-4" />
+                E-Mail
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => addStep('DELAY')}>
+                <Clock className="mr-2 h-4 w-4" />
+                Delay
+              </Button>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
+
           {steps.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed rounded-lg">
-              <Mail className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-              <h3 className="font-medium mb-1">Noch keine Steps</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Füge E-Mail- oder Delay-Steps hinzu
+            <div className="text-center py-16 border-2 border-dashed rounded-lg">
+              <Mail className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="font-medium text-lg mb-2">Noch keine Steps</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                Füge E-Mail- oder Delay-Steps hinzu um deine Sequenz zu erstellen
               </p>
-              <div className="flex justify-center gap-2">
-                <Button size="sm" onClick={() => addStep('EMAIL')}>
+              <div className="flex justify-center gap-3">
+                <Button onClick={() => addStep('EMAIL')}>
                   <Mail className="mr-2 h-4 w-4" />
                   Erste E-Mail
+                </Button>
+                <Button variant="outline" onClick={() => setAiDialogOpen(true)}>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Mit KI starten
                 </Button>
               </div>
             </div>
@@ -486,23 +488,27 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
               </SortableContext>
             </DndContext>
           )}
-        </CardContent>
-      </Card>
+        </TabsContent>
 
-      {/* Einstellungen - kompakt mit Analytics Icon + Vorschau */}
-      <SequenceTracking 
-        sequenceId={sequence.id}
-        trackOpens={sequence.trackOpens}
-        trackClicks={sequence.trackClicks}
-        sendTime={sequence.sendTime}
-        onUpdate={(trackOpens, trackClicks, sendTime) => {
-          setSequence(prev => ({ ...prev, trackOpens, trackClicks, sendTime }))
-        }}
-        onOpenAnalytics={() => setAnalyticsOpen(true)}
-      />
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="mt-6">
+          <SequenceTracking 
+            sequenceId={sequence.id}
+            trackOpens={sequence.trackOpens}
+            trackClicks={sequence.trackClicks}
+            sendTime={sequence.sendTime}
+            onUpdate={(trackOpens, trackClicks, sendTime) => {
+              setSequence(prev => ({ ...prev, trackOpens, trackClicks, sendTime }))
+            }}
+            onOpenAnalytics={() => setAnalyticsOpen(true)}
+          />
+        </TabsContent>
 
-      {/* Leads in Sequence - ganz unten */}
-      <SequenceLeads sequenceId={sequence.id} />
+        {/* Leads Tab */}
+        <TabsContent value="leads" className="mt-6">
+          <SequenceLeads sequenceId={sequence.id} />
+        </TabsContent>
+      </Tabs>
 
       {/* Bestätigungsmodal für Aktivieren/Pausieren */}
       <AlertDialog open={confirmActiveModal} onOpenChange={setConfirmActiveModal}>

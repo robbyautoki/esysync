@@ -23,16 +23,13 @@ import {
   Mail,
   Clock,
 } from 'lucide-react'
+import { Area, AreaChart, CartesianGrid, XAxis } from 'recharts'
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts'
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart'
 
 interface SequenceAnalyticsSheetProps {
   open: boolean
@@ -192,6 +189,17 @@ export function SequenceAnalyticsSheet({
     return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
   }
 
+  const chartConfig = {
+    opens: {
+      label: 'Opens',
+      color: 'hsl(var(--chart-1))',
+    },
+    clicks: {
+      label: 'Klicks',
+      color: 'hsl(var(--chart-2))',
+    },
+  } satisfies ChartConfig
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh]">
@@ -251,45 +259,41 @@ export function SequenceAnalyticsSheet({
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-56">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={stats.timeline}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis
-                          dataKey="date"
-                          tickFormatter={formatDate}
-                          tick={{ fontSize: 12 }}
-                          stroke="#9ca3af"
-                        />
-                        <YAxis tick={{ fontSize: 12 }} stroke="#9ca3af" />
-                        <Tooltip
-                          labelFormatter={(value) => formatDate(value as string)}
-                          contentStyle={{
-                            backgroundColor: 'hsl(var(--background))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '6px',
-                          }}
-                        />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="opens"
-                          name="Opens"
-                          stroke="#3b82f6"
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="clicks"
-                          name="Klicks"
-                          stroke="#10b981"
-                          strokeWidth={2}
-                          dot={false}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <ChartContainer config={chartConfig} className="h-56 w-full">
+                    <AreaChart
+                      data={stats.timeline}
+                      margin={{ left: 12, right: 12 }}
+                    >
+                      <CartesianGrid vertical={false} />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={8}
+                        tickFormatter={formatDate}
+                      />
+                      <ChartTooltip
+                        cursor={false}
+                        content={<ChartTooltipContent indicator="dot" />}
+                      />
+                      <Area
+                        dataKey="opens"
+                        type="natural"
+                        fill="var(--color-opens)"
+                        fillOpacity={0.4}
+                        stroke="var(--color-opens)"
+                        stackId="a"
+                      />
+                      <Area
+                        dataKey="clicks"
+                        type="natural"
+                        fill="var(--color-clicks)"
+                        fillOpacity={0.4}
+                        stroke="var(--color-clicks)"
+                        stackId="b"
+                      />
+                    </AreaChart>
+                  </ChartContainer>
                 </CardContent>
               </Card>
 

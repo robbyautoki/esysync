@@ -57,7 +57,6 @@ import {
 } from 'lucide-react'
 import { formatRelativeDate } from '@/lib/utils'
 import { toast } from 'sonner'
-import Link from 'next/link'
 import { AddToSequenceModal } from './add-to-sequence-modal'
 import { LeadHistorySheet } from './lead-history-sheet'
 
@@ -457,7 +456,16 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
-                      {lead.email}
+                      <button
+                        type="button"
+                        className="hover:underline text-left"
+                        onClick={() => {
+                          setHistoryLeadId(lead.id)
+                          setHistoryOpen(true)
+                        }}
+                      >
+                        {lead.email}
+                      </button>
                       {isEsySync && (
                         <Badge variant="outline" className="bg-purple-100 text-purple-700 border-purple-300 text-xs">
                           esysync
@@ -504,11 +512,14 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
                           </Button>
                         </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/leads/${lead.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Details anzeigen
-                          </Link>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setHistoryLeadId(lead.id)
+                            setHistoryOpen(true)
+                          }}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          History anzeigen
                         </DropdownMenuItem>
                         <DropdownMenuSub>
                           <DropdownMenuSubTrigger onPointerEnter={fetchSegments}>

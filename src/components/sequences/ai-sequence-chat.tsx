@@ -17,7 +17,7 @@ import { Message } from '@/components/ai/message'
 import { ConversationContent } from '@/components/ai/conversation'
 import { PromptInput } from '@/components/ai/prompt-input'
 import { Loader } from '@/components/ai/loader'
-import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, Globe, Zap, Search, User, ChevronDown, Plus, Play, FileText, Eye } from 'lucide-react'
+import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, Globe, Zap, Search, User, ChevronDown, Plus, Play, FileText, Eye, RotateCcw } from 'lucide-react'
 import { ModelSelector } from '@/components/ai/model-selector'
 import { EmailPreviewModal } from '@/components/sequences/email-preview-modal'
 import {
@@ -140,6 +140,68 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
   const [chatMode, setChatMode] = useState<'plan' | 'execute'>('plan')
   const [previewStep, setPreviewStep] = useState<Step | null>(null)
 
+  const CHAT_STORAGE_KEY = `ai-chat-${sequenceId}`
+
+  // Chat aus localStorage laden
+  const loadChatFromStorage = () => {
+    try {
+      const stored = localStorage.getItem(CHAT_STORAGE_KEY)
+      if (stored) {
+        const data = JSON.parse(stored)
+        if (data.messages?.length > 0) {
+          setMessages(data.messages)
+          setGeneratedSteps(data.generatedSteps || [])
+          setSelectedStepIds(new Set(data.generatedSteps?.map((s: Step) => s.id) || []))
+          setChatMode(data.chatMode || 'plan')
+          setShowGoalSelection(false)
+          return true
+        }
+      }
+    } catch {
+      // Ignore errors
+    }
+    return false
+  }
+
+  // Chat in localStorage speichern
+  const saveChatToStorage = (msgs: ChatMessage[], steps: Step[], mode: 'plan' | 'execute') => {
+    try {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({
+        messages: msgs,
+        generatedSteps: steps,
+        chatMode: mode,
+        timestamp: Date.now()
+      }))
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  // Neuen Chat starten
+  const startNewChat = () => {
+    localStorage.removeItem(CHAT_STORAGE_KEY)
+    setMessages([])
+    setGeneratedSteps([])
+    setSelectedStepIds(new Set())
+    setChatMode('plan')
+    setShowGoalSelection(true)
+    
+    if (companyProfile) {
+      setMessages([{
+        id: 'welcome',
+        role: 'assistant',
+        content: `Hey ${companyProfile.companyName}! 👋\n\nWas möchtest du heute erreichen?`
+      }])
+    }
+  }
+
+  // Chat speichern bei Änderungen
+  useEffect(() => {
+    if (messages.length > 1 || generatedSteps.length > 0) {
+      saveChatToStorage(messages, generatedSteps, chatMode)
+    }
+  }, [messages, generatedSteps, chatMode])
+
   // Lade Profil und Marketing-Kontext beim Öffnen
   useEffect(() => {
     if (open) {
@@ -170,12 +232,18 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
         
         if (data.activeProfile) {
           setCompanyProfile(data.activeProfile)
-          setShowGoalSelection(true)
-          setMessages([{
-            id: 'welcome',
-            role: 'assistant',
-            content: `Hey ${data.activeProfile.companyName}! 👋\n\nWas möchtest du heute erreichen?`
-          }])
+          
+          // Versuche gespeicherten Chat zu laden
+          const hasStoredChat = loadChatFromStorage()
+          
+          if (!hasStoredChat) {
+            setShowGoalSelection(true)
+            setMessages([{
+              id: 'welcome',
+              role: 'assistant',
+              content: `Hey ${data.activeProfile.companyName}! 👋\n\nWas möchtest du heute erreichen?`
+            }])
+          }
         } else {
           setMessages([{
             id: 'onboarding-start',
@@ -515,10 +583,23 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[80vh] flex flex-col p-0">
         <SheetHeader className="px-8 md:px-12 py-4 border-b flex-shrink-0">
-          <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            KI Sequenz-Builder
-          </SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              KI Sequenz-Builder
+            </SheetTitle>
+            {messages.length > 1 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={startNewChat}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="w-4 h-4 mr-1" />
+                Neuer Chat
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
         <div className="flex-1 flex overflow-hidden">

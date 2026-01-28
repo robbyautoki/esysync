@@ -41,16 +41,32 @@ export function EmailPreviewModal({
 
   const loadSettings = async () => {
     try {
-      const res = await fetch('/api/settings')
-      if (res.ok) {
-        const data = await res.json()
-        if (data.activeProfile) {
-          setSettings({
-            companyName: data.activeProfile.companyName,
-            companyAddress: data.companyAddress || companyAddress
-          })
+      const [settingsRes, emailRes] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/settings/email')
+      ])
+      
+      let name = companyName
+      let address = companyAddress
+      
+      if (settingsRes.ok) {
+        const data = await settingsRes.json()
+        if (data.activeProfile?.companyName) {
+          name = data.activeProfile.companyName
         }
       }
+      
+      if (emailRes.ok) {
+        const emailData = await emailRes.json()
+        if (emailData.companyName) {
+          name = emailData.companyName
+        }
+        if (emailData.companyAddress) {
+          address = emailData.companyAddress
+        }
+      }
+      
+      setSettings({ companyName: name, companyAddress: address })
     } catch {
       // Use defaults
     }

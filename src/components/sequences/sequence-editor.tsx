@@ -71,7 +71,6 @@ import { StepCard } from './step-card'
 import { EmailStepEditor } from './email-step-editor'
 import { SequenceLeads } from './sequence-leads'
 import { SequenceTracking } from './sequence-tracking'
-import { SequencePreview } from './sequence-preview'
 
 interface Step {
   id: string
@@ -359,7 +358,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
                   >
                     <CalendarIcon className="h-3.5 w-3.5 mr-1" />
                     {scheduledDate 
-                      ? format(scheduledDate, 'dd.MM.yyyy', { locale: de })
+                      ? `${format(scheduledDate, 'dd.MM.yyyy', { locale: de })}, ${scheduledTime}`
                       : 'Sofort'
                     }
                   </Button>
@@ -490,10 +489,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
         </CardContent>
       </Card>
 
-      {/* Vorschau */}
-      <SequencePreview sequenceId={sequence.id} />
-
-      {/* Tracking - kompakt mit Analytics Icon */}
+      {/* Einstellungen - kompakt mit Analytics Icon + Vorschau */}
       <SequenceTracking 
         sequenceId={sequence.id}
         trackOpens={sequence.trackOpens}

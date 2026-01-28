@@ -2,6 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { Bot, User } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 
 interface MessageProps {
   role: 'user' | 'assistant'
@@ -10,6 +11,8 @@ interface MessageProps {
 }
 
 export function Message({ role, children, className }: MessageProps) {
+  const isString = typeof children === 'string'
+  
   return (
     <div
       className={cn(
@@ -40,7 +43,13 @@ export function Message({ role, children, className }: MessageProps) {
             : 'bg-primary/10'
         )}
       >
-        <div className="text-sm whitespace-pre-wrap">{children}</div>
+        {isString ? (
+          <div className="text-sm prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+            <ReactMarkdown>{children}</ReactMarkdown>
+          </div>
+        ) : (
+          <div className="text-sm">{children}</div>
+        )}
       </div>
     </div>
   )

@@ -17,8 +17,15 @@ import { Message } from '@/components/ai/message'
 import { ConversationContent } from '@/components/ai/conversation'
 import { PromptInput } from '@/components/ai/prompt-input'
 import { Loader } from '@/components/ai/loader'
-import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, Globe, Zap, Search, User } from 'lucide-react'
+import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, Globe, Zap, Search, User, ChevronDown, Plus, Play, FileText, MessageSquare } from 'lucide-react'
 import { ModelSelector } from '@/components/ai/model-selector'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 
 interface Step {
@@ -114,6 +121,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
   const [stepsLoading, setStepsLoading] = useState(false)
   const [selectedModel, setSelectedModel] = useState('gpt-4o')
   const [marketingContext, setMarketingContext] = useState<MarketingContext | null>(null)
+  const [chatMode, setChatMode] = useState<'plan' | 'execute'>('plan')
 
   // Lade Profil und Marketing-Kontext beim Öffnen
   useEffect(() => {
@@ -449,10 +457,35 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[80vh] flex flex-col p-0">
         <SheetHeader className="px-8 md:px-12 py-4 border-b flex-shrink-0">
-          <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            KI Sequenz-Builder
-          </SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              KI Sequenz-Builder
+            </SheetTitle>
+            <div className="flex items-center gap-2">
+              {/* Mode Toggle */}
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                <Button
+                  variant={chatMode === 'plan' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setChatMode('plan')}
+                >
+                  <FileText className="w-3 h-3 mr-1" />
+                  Planen
+                </Button>
+                <Button
+                  variant={chatMode === 'execute' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="h-7 px-3 text-xs"
+                  onClick={() => setChatMode('execute')}
+                >
+                  <Play className="w-3 h-3 mr-1" />
+                  Ausführen
+                </Button>
+              </div>
+            </div>
+          </div>
         </SheetHeader>
 
         <div className="flex-1 flex overflow-hidden">
@@ -467,9 +500,44 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                 <ScrollArea className="flex-1">
                   <ConversationContent className="px-8 md:px-12 lg:px-16 max-w-3xl mx-auto">
                     {messages.map(msg => (
-                      <Message key={msg.id} role={msg.role}>
-                        {msg.content}
-                      </Message>
+                      <div key={msg.id}>
+                        <Message role={msg.role}>
+                          {msg.content}
+                        </Message>
+                        {/* Steps als Karten im Chat anzeigen */}
+                        {msg.steps && msg.steps.length > 0 && (
+                          <div className="ml-11 mt-2 space-y-2">
+                            {msg.steps.map((step, index) => {
+                              const Icon = STEP_ICONS[step.type]
+                              return (
+                                <div 
+                                  key={step.id}
+                                  className="p-3 rounded-lg border bg-card"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${STEP_COLORS[step.type]}`}>
+                                      <Icon className="w-4 h-4" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2">
+                                        <Badge variant="secondary" className="text-xs flex-shrink-0">
+                                          {index + 1}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground">
+                                          {step.type}
+                                        </span>
+                                      </div>
+                                      <p className="text-sm font-medium mt-1 break-words">
+                                        {getStepLabel(step)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
                     ))}
                     {loading && (
                       <Message role="assistant">
@@ -579,15 +647,38 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                     actions={
                       <>
                         {companyProfile && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 gap-2 text-muted-foreground hover:text-foreground"
-                            onClick={resetProfile}
-                          >
-                            <User className="w-4 h-4" />
-                            <span className="text-sm">Profil</span>
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 gap-2 text-muted-foreground hover:text-foreground"
+                              >
+                                <User className="w-4 h-4" />
+                                <span className="text-sm">{companyProfile.companyName}</span>
+                                <ChevronDown className="w-3 h-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              {allProfiles.map(profile => (
+                                <DropdownMenuItem 
+                                  key={profile.id}
+                                  onClick={() => switchProfile(profile.id)}
+                                  className={profile.id === companyProfile.id ? 'bg-muted' : ''}
+                                >
+                                  {profile.companyName}
+                                  {profile.id === companyProfile.id && (
+                                    <Check className="w-4 h-4 ml-auto" />
+                                  )}
+                                </DropdownMenuItem>
+                              ))}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={startNewProfile}>
+                                <Plus className="w-4 h-4 mr-2" />
+                                Neues Profil
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
                         <ModelSelector disabled={loading} />
                       </>

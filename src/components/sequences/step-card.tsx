@@ -245,7 +245,7 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
       )}
     >
       {/* Main Row */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-1">
       {/* Drag Handle */}
       <Tooltip>
         <TooltipTrigger asChild>

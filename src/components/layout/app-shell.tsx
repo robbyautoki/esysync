@@ -122,17 +122,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </TooltipContent>
               </Tooltip>
             </div>
-            <div className="px-3 py-2 text-xs text-muted-foreground">
-              Powered by{' '}
-              <a 
-                href="https://resend.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-foreground hover:underline"
-              >
-                Resend
-              </a>
-            </div>
           </div>
         </aside>
 

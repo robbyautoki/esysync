@@ -3,12 +3,15 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 
 const createStepSchema = z.object({
-  type: z.enum(['EMAIL', 'DELAY']),
+  type: z.enum(['EMAIL', 'DELAY', 'TAG', 'SEGMENT']),
   order: z.number(),
   subject: z.string().nullable().optional(),
   content: z.any().optional(),
   delayValue: z.number().nullable().optional(),
-  delayUnit: z.string().nullable().optional()
+  delayUnit: z.string().nullable().optional(),
+  tagAction: z.string().nullable().optional(),
+  tagValue: z.string().nullable().optional(),
+  targetSegmentId: z.string().nullable().optional()
 })
 
 export async function POST(
@@ -27,7 +30,10 @@ export async function POST(
         subject: data.subject,
         content: data.content,
         delayValue: data.delayValue,
-        delayUnit: data.delayUnit
+        delayUnit: data.delayUnit,
+        tagAction: data.tagAction,
+        tagValue: data.tagValue,
+        targetSegmentId: data.targetSegmentId
       }
     })
 

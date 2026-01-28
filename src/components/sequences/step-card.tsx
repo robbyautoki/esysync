@@ -123,8 +123,30 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
   if (step.type === 'SEGMENT' && !step.targetSegmentId) {
     warnings.push('Segment nicht gewählt')
   }
-  if (step.type === 'CONDITION' && !step.conditionType) {
-    warnings.push('Bedingung nicht konfiguriert')
+  if (step.type === 'CONDITION') {
+    if (!step.conditionType) {
+      warnings.push('Bedingung nicht konfiguriert')
+    }
+    if (step.conditionType && !step.conditionValue?.trim()) {
+      warnings.push('Bedingungswert fehlt')
+    }
+    
+    const trueSteps = step.trueSteps || []
+    const falseSteps = step.falseSteps || []
+    
+    if (trueSteps.length === 0 && falseSteps.length === 0) {
+      warnings.push('Keine Aktionen definiert')
+    }
+    
+    // Branch-Steps prüfen
+    ;[...trueSteps, ...falseSteps].forEach(bs => {
+      if (bs.type === 'EMAIL' && !bs.subject?.trim()) {
+        warnings.push('Branch: E-Mail ohne Betreff')
+      }
+      if (bs.type === 'TAG' && !bs.tagValue?.trim()) {
+        warnings.push('Branch: Tag nicht gesetzt')
+      }
+    })
   }
   const hasWarning = warnings.length > 0
 

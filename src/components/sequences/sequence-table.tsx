@@ -19,7 +19,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { BarChart3, Mail, Users, Check } from 'lucide-react'
+import { BarChart3, Mail, Users, Check, Play, Pause } from 'lucide-react'
 import { formatRelativeDate } from '@/lib/utils'
 import { SequenceActions } from './sequence-actions'
 
@@ -58,6 +58,7 @@ interface SequenceTableProps {
   selectedIds: string[]
   onSelectionChange: (ids: string[]) => void
   onOpenAnalytics: (sequence: Sequence) => void
+  onToggleActive: (sequence: Sequence) => void
   onUpdateColor: (sequenceId: string, color: string | null) => void
   onUpdateFolder: (sequenceId: string, folderId: string | null) => void
 }
@@ -132,6 +133,7 @@ export function SequenceTable({
   selectedIds, 
   onSelectionChange, 
   onOpenAnalytics,
+  onToggleActive,
   onUpdateColor,
   onUpdateFolder,
 }: SequenceTableProps) {
@@ -256,18 +258,38 @@ export function SequenceTable({
                     {formatRelativeDate(sequence.createdAt)}
                   </TableCell>
                   <TableCell>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onOpenAnalytics(sequence)}
-                        >
-                          <BarChart3 className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>Analytics anzeigen</TooltipContent>
-                    </Tooltip>
+                    <div className="flex items-center gap-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onToggleActive(sequence)}
+                          >
+                            {sequence.isActive ? (
+                              <Pause className="h-4 w-4" />
+                            ) : (
+                              <Play className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {sequence.isActive ? 'Pausieren' : 'Aktivieren'}
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onOpenAnalytics(sequence)}
+                          >
+                            <BarChart3 className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Analytics anzeigen</TooltipContent>
+                      </Tooltip>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <SequenceActions 

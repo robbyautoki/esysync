@@ -28,6 +28,14 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Trash2, X, AlertTriangle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { validateSequence, formatValidationErrors } from '@/lib/sequence-validation'
 
 interface SequenceFolder {
   id: string
@@ -73,6 +81,7 @@ export function SequencesPageClient({ sequences, folders }: SequencesPageClientP
   const [newFolderName, setNewFolderName] = useState('')
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
 
   const handleOpenAnalytics = (sequence: Sequence) => {
     setSelectedSequence(sequence)
@@ -202,11 +211,62 @@ export function SequencesPageClient({ sequences, folders }: SequencesPageClientP
     }
   }
 
-  // Filtered sequences based on selected folder
+  const handleToggleActive = async (sequence: Sequence) => {
+    // Validierung nur beim Aktivieren
+    if (!sequence.isActive) {
+      try {
+        const res = await fetch(`/api/sequences/${sequence.id}`)
+        if (!res.ok) throw new Error('Fehler beim Laden')
+        const fullSequence = await res.json()
+        const errors = validateSequence(fullSequence.steps)
+        
+        if (errors.length > 0) {
+          toast.error('Sequenz kann nicht aktiviert werden', {
+            description: formatValidationErrors(errors)
+          })
+          return
+        }
+      } catch {
+        toast.error('Fehler beim Laden der Sequenz')
+        return
+      }
+    }
+
+    // Aktivieren/Pausieren
+    try {
+      const res = await fetch(`/api/sequences/${sequence.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !sequence.isActive })
+      })
+      
+      if (!res.ok) throw new Error('Fehler beim Aktualisieren')
+      
+      toast.success(sequence.isActive ? 'Sequenz pausiert' : 'Sequenz aktiviert')
+      router.refresh()
+    } catch {
+      toast.error('Aktion fehlgeschlagen')
+    }
+  }
+
+  // Filtered sequences based on selected folder and status
   const filteredSequences = useMemo(() => {
-    if (selectedFolderId === null) return sequences
-    return sequences.filter(s => s.folderId === selectedFolderId)
-  }, [sequences, selectedFolderId])
+    let result = sequences
+    
+    // Folder filter
+    if (selectedFolderId !== null) {
+      result = result.filter(s => s.folderId === selectedFolderId)
+    }
+    
+    // Status filter
+    if (statusFilter === 'active') {
+      result = result.filter(s => s.isActive)
+    } else if (statusFilter === 'inactive') {
+      result = result.filter(s => !s.isActive)
+    }
+    
+    return result
+  }, [sequences, selectedFolderId, statusFilter])
 
   // Count sequences per folder
   const sequenceCounts = useMemo(() => {
@@ -261,13 +321,29 @@ export function SequencesPageClient({ sequences, folders }: SequencesPageClientP
           onDeleteFolder={handleDeleteFolder}
         />
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 space-y-4">
+          {/* Status Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Status:</span>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as 'all' | 'active' | 'inactive')}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle</SelectItem>
+                <SelectItem value="active">Aktiv</SelectItem>
+                <SelectItem value="inactive">Inaktiv</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <SequenceTable
             sequences={filteredSequences}
             folders={folders}
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
             onOpenAnalytics={handleOpenAnalytics}
+            onToggleActive={handleToggleActive}
             onUpdateColor={handleUpdateSequenceColor}
             onUpdateFolder={handleUpdateSequenceFolder}
           />

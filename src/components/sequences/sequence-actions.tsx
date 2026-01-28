@@ -24,7 +24,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { MoreHorizontal, Play, Pause, Edit, Trash2, Copy, FolderInput, Folder, FolderMinus } from 'lucide-react'
+import { MoreHorizontal, Edit, Trash2, Copy, FolderInput, Folder, FolderMinus } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -49,24 +49,6 @@ interface SequenceActionsProps {
 export function SequenceActions({ sequence, folders = [], onMoveToFolder }: SequenceActionsProps) {
   const router = useRouter()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [activeDialogOpen, setActiveDialogOpen] = useState(false)
-
-  const handleToggleActive = async () => {
-    try {
-      const res = await fetch(`/api/sequences/${sequence.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !sequence.isActive })
-      })
-      
-      if (!res.ok) throw new Error('Fehler beim Aktualisieren')
-      
-      toast.success(sequence.isActive ? 'Sequenz pausiert' : 'Sequenz aktiviert')
-      router.refresh()
-    } catch {
-      toast.error('Aktion fehlgeschlagen')
-    }
-  }
 
   const handleDelete = async () => {
     try {
@@ -107,19 +89,6 @@ export function SequenceActions({ sequence, folders = [], onMoveToFolder }: Sequ
               <Edit className="mr-2 h-4 w-4" />
               Bearbeiten
             </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setActiveDialogOpen(true)}>
-            {sequence.isActive ? (
-              <>
-                <Pause className="mr-2 h-4 w-4" />
-                Pausieren
-              </>
-            ) : (
-              <>
-                <Play className="mr-2 h-4 w-4" />
-                Aktivieren
-              </>
-            )}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleDuplicate}>
             <Copy className="mr-2 h-4 w-4" />
@@ -184,33 +153,6 @@ export function SequenceActions({ sequence, folders = [], onMoveToFolder }: Sequ
               onClick={handleDelete}
             >
               Löschen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={activeDialogOpen} onOpenChange={setActiveDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {sequence.isActive ? 'Sequenz pausieren?' : 'Sequenz aktivieren?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {sequence.isActive 
-                ? 'Neue Leads werden nicht mehr automatisch hinzugefügt. Bestehende Leads in der Sequenz erhalten weiterhin ihre geplanten E-Mails.'
-                : 'Die Sequenz wird für neue Leads aktiviert. Leads die den Trigger erfüllen werden automatisch hinzugefügt und erhalten die E-Mails.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              className={sequence.isActive ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'}
-              onClick={() => {
-                handleToggleActive()
-                setActiveDialogOpen(false)
-              }}
-            >
-              {sequence.isActive ? 'Pausieren' : 'Aktivieren'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

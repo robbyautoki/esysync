@@ -9,9 +9,7 @@ import {
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Message } from '@/components/ai/message'
 import { ConversationContent } from '@/components/ai/conversation'
@@ -603,8 +601,8 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
         </SheetHeader>
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Chat-Bereich (links) */}
-          <div className="flex-1 flex flex-col border-r min-w-0">
+          {/* Chat-Bereich */}
+          <div className="flex-1 flex flex-col min-w-0">
             {profileLoading ? (
               <div className="flex-1 flex items-center justify-center">
                 <Loader text="Lade Profil..." />
@@ -620,35 +618,61 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                         </Message>
                         {/* Steps als Karten im Chat anzeigen */}
                         {msg.steps && msg.steps.length > 0 && (
-                          <div className="ml-11 mt-2 space-y-2">
-                            {msg.steps.map((step, index) => {
-                              const Icon = STEP_ICONS[step.type]
-                              return (
-                                <div 
-                                  key={step.id}
-                                  className="p-3 rounded-lg border bg-card"
-                                >
-                                  <div className="flex items-start gap-3">
-                                    <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${STEP_COLORS[step.type]}`}>
-                                      <Icon className="w-4 h-4" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2">
-                                        <Badge variant="secondary" className="text-xs flex-shrink-0">
-                                          {index + 1}
-                                        </Badge>
-                                        <span className="text-xs text-muted-foreground">
-                                          {step.type}
-                                        </span>
+                          <div className="ml-11 mt-2">
+                            <div className="space-y-2">
+                              {msg.steps.map((step, index) => {
+                                const Icon = STEP_ICONS[step.type]
+                                return (
+                                  <div 
+                                    key={step.id}
+                                    className="p-3 rounded-lg border bg-card animate-in fade-in slide-in-from-top duration-300"
+                                    style={{ animationDelay: `${index * 80}ms`, animationFillMode: 'backwards' }}
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${STEP_COLORS[step.type]}`}>
+                                        <Icon className="w-4 h-4" />
                                       </div>
-                                      <p className="text-sm font-medium mt-1 break-words">
-                                        {getStepLabel(step)}
-                                      </p>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                          <Badge variant="secondary" className="text-xs flex-shrink-0">
+                                            {index + 1}
+                                          </Badge>
+                                          <span className="text-xs text-muted-foreground">
+                                            {step.type}
+                                          </span>
+                                        </div>
+                                        <p className="text-sm font-medium mt-1 break-words">
+                                          {getStepLabel(step)}
+                                        </p>
+                                      </div>
+                                      {step.type === 'EMAIL' && step.body && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 w-8 p-0 flex-shrink-0"
+                                          onClick={() => setPreviewStep(step)}
+                                        >
+                                          <Eye className="w-4 h-4" />
+                                        </Button>
+                                      )}
                                     </div>
                                   </div>
-                                </div>
-                              )
-                            })}
+                                )
+                              })}
+                            </div>
+                            <div className="mt-4 flex gap-2">
+                              <Button 
+                                size="sm"
+                                onClick={() => {
+                                  onApplySteps(msg.steps!)
+                                  onOpenChange(false)
+                                  toast.success(`${msg.steps!.length} Steps übernommen`)
+                                }}
+                              >
+                                <Check className="w-4 h-4 mr-1" />
+                                Alle übernehmen
+                              </Button>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -824,113 +848,6 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                   />
                 </div>
               </>
-            )}
-          </div>
-
-          {/* Preview-Bereich (rechts) */}
-          <div className="w-96 flex flex-col">
-            {/* Minimaler Header - nur Anzahl, animiert */}
-            {generatedSteps.length > 0 && (
-              <div className="px-6 py-4 animate-in fade-in slide-in-from-top duration-300">
-                <span className="text-sm font-medium text-muted-foreground">
-                  {generatedSteps.length} Steps
-                </span>
-              </div>
-            )}
-
-            <ScrollArea className="flex-1">
-              <div className="px-6 py-2 space-y-2">
-                {stepsLoading && chatMode === 'execute' ? (
-                  <div className="space-y-3">
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                    <p className="text-xs text-muted-foreground text-center mt-4">
-                      Generiere E-Mail-Inhalte...
-                    </p>
-                  </div>
-                ) : generatedSteps.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    Beschreibe deine Kampagne im Chat, um Steps zu generieren
-                  </p>
-                ) : (
-                  generatedSteps.map((step, index) => {
-                    const Icon = STEP_ICONS[step.type]
-                    const isSelected = selectedStepIds.has(step.id)
-                    return (
-                      <div 
-                        key={step.id}
-                        className={`p-3 rounded-lg border bg-card cursor-pointer transition-colors animate-in fade-in slide-in-from-top duration-300 ${
-                          isSelected ? 'ring-2 ring-primary' : 'hover:bg-muted/50'
-                        }`}
-                        style={{ animationDelay: `${index * 80}ms`, animationFillMode: 'backwards' }}
-                        onClick={() => toggleStep(step.id)}
-                      >
-                        <div className="flex items-start gap-3">
-                          <Checkbox 
-                            checked={isSelected}
-                            onCheckedChange={() => toggleStep(step.id)}
-                            className="mt-0.5"
-                          />
-                          <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${STEP_COLORS[step.type]}`}>
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="text-xs flex-shrink-0">
-                                {index + 1}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {step.type}
-                              </span>
-                            </div>
-                            <p className="text-sm font-medium mt-1 break-words">
-                              {getStepLabel(step)}
-                            </p>
-                          </div>
-                          {step.type === 'EMAIL' && step.body && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 flex-shrink-0"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setPreviewStep(step)
-                              }}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-            </ScrollArea>
-
-            {generatedSteps.length > 0 && (
-              <div className="px-6 py-4 border-t space-y-2">
-                <Button 
-                  className="w-full" 
-                  onClick={handleApply}
-                  disabled={selectedStepIds.size === 0}
-                >
-                  <Check className="w-4 h-4 mr-2" />
-                  {selectedStepIds.size === generatedSteps.length 
-                    ? 'Alle übernehmen' 
-                    : `${selectedStepIds.size} Steps übernehmen`}
-                </Button>
-                {selectedStepIds.size < generatedSteps.length && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full"
-                    onClick={selectAll}
-                  >
-                    Alle auswählen
-                  </Button>
-                )}
-              </div>
             )}
           </div>
         </div>

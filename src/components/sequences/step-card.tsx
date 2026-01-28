@@ -171,7 +171,9 @@ export function StepCard({ step, index, isLast, onEdit, onUpdate, onDelete }: St
               </div>
             </TooltipTrigger>
             <TooltipContent>
-              <p className="font-medium mb-1">E-Mail unvollständig:</p>
+              <p className="font-medium mb-1">
+                {step.type === 'EMAIL' ? 'E-Mail unvollständig:' : 'Hinweis:'}
+              </p>
               {warnings.map((w, i) => (
                 <p key={i}>• {w}</p>
               ))}

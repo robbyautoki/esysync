@@ -23,6 +23,7 @@ interface Step {
   id: string
   type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION'
   subject?: string | null
+  body?: string | null
   delayValue?: number | null
   delayUnit?: string | null
   tagAction?: string | null
@@ -48,15 +49,17 @@ export async function POST(req: NextRequest) {
   const anthropicKey = process.env.ANTHROPIC_API_KEY
 
   try {
-    const { messages, companyProfile, sequenceId, model = 'gpt-4o', marketingContext } = await req.json() as {
+    const { messages, companyProfile, sequenceId, model = 'gpt-4o', marketingContext, mode = 'plan' } = await req.json() as {
       messages: ChatMessage[]
       companyProfile: CompanyProfile | null
       sequenceId: string
       model?: string
       marketingContext?: MarketingContext
+      mode?: 'plan' | 'execute'
     }
 
-    const systemPrompt = buildSystemPrompt(companyProfile, marketingContext)
+    const systemPrompt = buildSystemPrompt(companyProfile, marketingContext, mode)
+    const toolSchema = getToolSchema(mode)
 
     // Anthropic API
     if (model.startsWith('claude') && anthropicKey) {
@@ -74,32 +77,10 @@ export async function POST(req: NextRequest) {
           messages: messages.map(m => ({ role: m.role, content: m.content })),
           tools: [{
             name: 'generate_sequence_steps',
-            description: 'Generiert eine Liste von Sequenz-Steps basierend auf der Kampagnenbeschreibung',
-            input_schema: {
-              type: 'object',
-              properties: {
-                message: { type: 'string', description: 'Eine freundliche Nachricht die den Vorschlag erklärt' },
-                steps: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      type: { type: 'string', enum: ['EMAIL', 'DELAY', 'TAG', 'SEGMENT', 'CONDITION'] },
-                      subject: { type: 'string' },
-                      delayValue: { type: 'number' },
-                      delayUnit: { type: 'string', enum: ['minutes', 'hours', 'days'] },
-                      tagAction: { type: 'string', enum: ['add', 'remove'] },
-                      tagValue: { type: 'string' },
-                      segmentName: { type: 'string' },
-                      conditionType: { type: 'string', enum: ['HAS_TAG', 'IN_SEGMENT', 'OPENED_EMAIL', 'CLICKED_EMAIL'] },
-                      conditionValue: { type: 'string' }
-                    },
-                    required: ['type']
-                  }
-                }
-              },
-              required: ['message', 'steps']
-            }
+            description: mode === 'execute' 
+              ? 'Generiert vollständige Sequenz-Steps mit E-Mail-Inhalten'
+              : 'Generiert eine Struktur von Sequenz-Steps (nur Betreffs, keine E-Mail-Texte)',
+            input_schema: toolSchema.anthropic
           }]
         })
       })
@@ -148,35 +129,10 @@ export async function POST(req: NextRequest) {
         functions: [
           {
             name: 'generate_sequence_steps',
-            description: 'Generiert eine Liste von Sequenz-Steps basierend auf der Kampagnenbeschreibung',
-            parameters: {
-              type: 'object',
-              properties: {
-                message: {
-                  type: 'string',
-                  description: 'Eine freundliche Nachricht die den Vorschlag erklärt'
-                },
-                steps: {
-                  type: 'array',
-                  items: {
-                    type: 'object',
-                    properties: {
-                      type: { type: 'string', enum: ['EMAIL', 'DELAY', 'TAG', 'SEGMENT', 'CONDITION'] },
-                      subject: { type: 'string', description: 'Betreff für EMAIL Steps' },
-                      delayValue: { type: 'number', description: 'Wartezeit für DELAY Steps' },
-                      delayUnit: { type: 'string', enum: ['minutes', 'hours', 'days'] },
-                      tagAction: { type: 'string', enum: ['add', 'remove'] },
-                      tagValue: { type: 'string', description: 'Tag-Name für TAG Steps' },
-                      segmentName: { type: 'string', description: 'Segment-Name für SEGMENT Steps' },
-                      conditionType: { type: 'string', enum: ['HAS_TAG', 'IN_SEGMENT', 'OPENED_EMAIL', 'CLICKED_EMAIL'] },
-                      conditionValue: { type: 'string', description: 'Wert für die Bedingung' }
-                    },
-                    required: ['type']
-                  }
-                }
-              },
-              required: ['message', 'steps']
-            }
+            description: mode === 'execute' 
+              ? 'Generiert vollständige Sequenz-Steps mit E-Mail-Inhalten'
+              : 'Generiert eine Struktur von Sequenz-Steps (nur Betreffs, keine E-Mail-Texte)',
+            parameters: toolSchema.openai
           }
         ],
         function_call: 'auto'
@@ -217,8 +173,112 @@ export async function POST(req: NextRequest) {
   }
 }
 
-function buildSystemPrompt(profile: CompanyProfile | null, context?: MarketingContext): string {
+function getToolSchema(mode: 'plan' | 'execute') {
+  const baseStepProperties = {
+    type: { type: 'string', enum: ['EMAIL', 'DELAY', 'TAG', 'SEGMENT', 'CONDITION'] },
+    subject: { type: 'string', description: 'Betreff für EMAIL Steps' },
+    delayValue: { type: 'number', description: 'Wartezeit für DELAY Steps' },
+    delayUnit: { type: 'string', enum: ['minutes', 'hours', 'days'] },
+    tagAction: { type: 'string', enum: ['add', 'remove'] },
+    tagValue: { type: 'string', description: 'Tag-Name für TAG Steps' },
+    segmentName: { type: 'string', description: 'Segment-Name für SEGMENT Steps' },
+    conditionType: { type: 'string', enum: ['HAS_TAG', 'IN_SEGMENT', 'OPENED_EMAIL', 'CLICKED_EMAIL'] },
+    conditionValue: { type: 'string', description: 'Wert für die Bedingung' }
+  }
+
+  const executeStepProperties = {
+    ...baseStepProperties,
+    body: { 
+      type: 'string', 
+      description: 'Vollständiger HTML E-Mail-Inhalt für EMAIL Steps. Verwende professionelles HTML mit Inline-Styles. Inkludiere Buttons als <a> Tags mit style="display:inline-block;padding:12px 24px;background-color:#000;color:#fff;text-decoration:none;border-radius:6px;"'
+    }
+  }
+
+  const stepProperties = mode === 'execute' ? executeStepProperties : baseStepProperties
+
+  return {
+    openai: {
+      type: 'object',
+      properties: {
+        message: {
+          type: 'string',
+          description: 'Eine freundliche Nachricht die den Vorschlag erklärt'
+        },
+        steps: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: stepProperties,
+            required: mode === 'execute' ? ['type', 'body'] : ['type']
+          }
+        }
+      },
+      required: ['message', 'steps']
+    },
+    anthropic: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', description: 'Eine freundliche Nachricht die den Vorschlag erklärt' },
+        steps: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: stepProperties,
+            required: mode === 'execute' ? ['type', 'body'] : ['type']
+          }
+        }
+      },
+      required: ['message', 'steps']
+    }
+  }
+}
+
+function buildSystemPrompt(profile: CompanyProfile | null, context?: MarketingContext, mode: 'plan' | 'execute' = 'plan'): string {
+  const modeInstructions = mode === 'execute' 
+    ? `
+## MODUS: AUSFÜHREN (Execute)
+Du generierst jetzt VOLLSTÄNDIGE E-Mails mit Inhalt!
+
+### E-MAIL SCHREIBEN (WICHTIG!)
+Für jeden EMAIL Step musst du einen vollständigen HTML body erstellen:
+
+**HTML-Struktur:**
+- Verwende einfaches, responsives HTML mit Inline-Styles
+- Maximale Breite: 600px
+- Schriftart: Arial, sans-serif
+- Buttons als <a> Tags mit inline padding/background
+
+**Copywriting-Regeln:**
+- Persönliche Anrede mit {{firstName}} oder "Hey"
+- Kurze Absätze (2-3 Sätze max)
+- Ein klarer CTA pro E-Mail
+- Tonalität passend zum Unternehmensprofil
+- KEIN Footer nötig - wird automatisch hinzugefügt
+
+**Button-Style:**
+\`<a href="{{linkUrl}}" style="display:inline-block;padding:12px 24px;background-color:#000;color:#fff;text-decoration:none;border-radius:6px;font-weight:500;">Button Text</a>\`
+
+**Beispiel body:**
+\`\`\`html
+<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+  <p style="font-size:16px;color:#333;line-height:1.6;">Hey {{firstName}},</p>
+  <p style="font-size:16px;color:#333;line-height:1.6;">Schön, dass du dabei bist! Wir freuen uns riesig, dich in unserer Community begrüßen zu dürfen.</p>
+  <p style="font-size:16px;color:#333;line-height:1.6;">Als kleines Willkommensgeschenk haben wir etwas Besonderes für dich:</p>
+  <p style="text-align:center;margin:24px 0;">
+    <a href="{{offerUrl}}" style="display:inline-block;padding:12px 24px;background-color:#000;color:#fff;text-decoration:none;border-radius:6px;font-weight:500;">Jetzt 10% Rabatt sichern</a>
+  </p>
+  <p style="font-size:16px;color:#333;line-height:1.6;">Bis bald!</p>
+</div>
+\`\`\`
+`
+    : `
+## MODUS: PLANEN (Plan)
+Du planst die Kampagnenstruktur - generiere NUR Betreffszeilen, keine E-Mail-Inhalte!
+Wenn der User mit dem Plan zufrieden ist, frage: "Soll ich jetzt die E-Mails ausformulieren?"
+`
+
   const basePrompt = `Du bist ein erfahrener E-Mail-Marketing-Berater. Deine Aufgabe ist es, den User zum BESTEN Ergebnis zu führen - nicht einfach Befehle auszuführen.
+${modeInstructions}
 
 ## DEINE PERSÖNLICHKEIT
 - Du bist wie ein freundlicher Marketing-Experte der dem User hilft

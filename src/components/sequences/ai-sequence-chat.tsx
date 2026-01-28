@@ -17,8 +17,9 @@ import { Message } from '@/components/ai/message'
 import { ConversationContent } from '@/components/ai/conversation'
 import { PromptInput } from '@/components/ai/prompt-input'
 import { Loader } from '@/components/ai/loader'
-import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, Globe, Zap, Search, User, ChevronDown, Plus, Play, FileText, MessageSquare } from 'lucide-react'
+import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, Globe, Zap, Search, User, ChevronDown, Plus, Play, FileText, Eye } from 'lucide-react'
 import { ModelSelector } from '@/components/ai/model-selector'
+import { EmailPreviewModal } from '@/components/sequences/email-preview-modal'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,7 @@ interface Step {
   id: string
   type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION'
   subject?: string | null
+  body?: string | null
   delayValue?: number | null
   delayUnit?: string | null
   tagAction?: string | null
@@ -40,6 +42,20 @@ interface Step {
   conditionType?: string | null
   conditionValue?: string | null
 }
+
+const PLAN_LOADER_TEXTS = [
+  'Plane Kampagne...',
+  'Denkt nach...',
+  'Analysiere Zielgruppe...',
+  'Strukturiere Steps...',
+]
+
+const EXECUTE_LOADER_TEXTS = [
+  'Generiere E-Mails...',
+  'Schreibe Inhalte...',
+  'Erstelle Kampagne...',
+  'Formuliere Texte...',
+]
 
 interface ChatMessage {
   id: string
@@ -122,6 +138,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
   const [selectedModel, setSelectedModel] = useState('gpt-4o')
   const [marketingContext, setMarketingContext] = useState<MarketingContext | null>(null)
   const [chatMode, setChatMode] = useState<'plan' | 'execute'>('plan')
+  const [previewStep, setPreviewStep] = useState<Step | null>(null)
 
   // Lade Profil und Marketing-Kontext beim Öffnen
   useEffect(() => {
@@ -375,7 +392,8 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
         body: JSON.stringify({
           messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
           companyProfile,
-          sequenceId
+          sequenceId,
+          mode: chatMode
         })
       })
 
@@ -457,35 +475,10 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[80vh] flex flex-col p-0">
         <SheetHeader className="px-8 md:px-12 py-4 border-b flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-primary" />
-              KI Sequenz-Builder
-            </SheetTitle>
-            <div className="flex items-center gap-2">
-              {/* Mode Toggle */}
-              <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-                <Button
-                  variant={chatMode === 'plan' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-7 px-3 text-xs"
-                  onClick={() => setChatMode('plan')}
-                >
-                  <FileText className="w-3 h-3 mr-1" />
-                  Planen
-                </Button>
-                <Button
-                  variant={chatMode === 'execute' ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-7 px-3 text-xs"
-                  onClick={() => setChatMode('execute')}
-                >
-                  <Play className="w-3 h-3 mr-1" />
-                  Ausführen
-                </Button>
-              </div>
-            </div>
-          </div>
+          <SheetTitle className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            KI Sequenz-Builder
+          </SheetTitle>
         </SheetHeader>
 
         <div className="flex-1 flex overflow-hidden">
@@ -541,7 +534,9 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                     ))}
                     {loading && (
                       <Message role="assistant">
-                        <Loader text="Generiere Kampagne..." />
+                        <Loader 
+                          rotatingTexts={chatMode === 'plan' ? PLAN_LOADER_TEXTS : EXECUTE_LOADER_TEXTS}
+                        />
                       </Message>
                     )}
 
@@ -680,6 +675,28 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
+                        <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                          <Button
+                            variant={chatMode === 'plan' ? 'default' : 'ghost'}
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setChatMode('plan')}
+                            disabled={loading}
+                          >
+                            <FileText className="w-3 h-3 mr-1" />
+                            Plan
+                          </Button>
+                          <Button
+                            variant={chatMode === 'execute' ? 'default' : 'ghost'}
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => setChatMode('execute')}
+                            disabled={loading}
+                          >
+                            <Play className="w-3 h-3 mr-1" />
+                            Ausführen
+                          </Button>
+                        </div>
                         <ModelSelector disabled={loading} />
                       </>
                     }
@@ -749,6 +766,19 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                               {getStepLabel(step)}
                             </p>
                           </div>
+                          {step.type === 'EMAIL' && step.body && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 flex-shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setPreviewStep(step)
+                              }}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     )
@@ -783,6 +813,15 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
           </div>
         </div>
       </SheetContent>
+
+      {/* E-Mail Preview Modal */}
+      <EmailPreviewModal
+        open={!!previewStep}
+        onOpenChange={(open) => !open && setPreviewStep(null)}
+        subject={previewStep?.subject || ''}
+        body={previewStep?.body || ''}
+        companyName={companyProfile?.companyName}
+      />
     </Sheet>
   )
 }

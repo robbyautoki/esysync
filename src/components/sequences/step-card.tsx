@@ -40,12 +40,14 @@ interface StepCardProps {
   step: Step
   index: number
   isLast?: boolean
+  prevStepType?: 'EMAIL' | 'DELAY' | null
+  nextStepType?: 'EMAIL' | 'DELAY' | null
   onEdit: () => void
   onUpdate: (step: Step) => void
   onDelete: () => void
 }
 
-export function StepCard({ step, index, isLast, onEdit, onUpdate, onDelete }: StepCardProps) {
+export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEdit, onUpdate, onDelete }: StepCardProps) {
   const {
     attributes,
     listeners,
@@ -79,6 +81,9 @@ export function StepCard({ step, index, isLast, onEdit, onUpdate, onDelete }: St
   if (step.type === 'EMAIL') {
     if (!hasContent) warnings.push('Kein Inhalt vorhanden')
     if (!hasFirstName) warnings.push('{{firstName}} fehlt')
+    if (prevStepType === 'EMAIL' || nextStepType === 'EMAIL') {
+      warnings.push('Delay zwischen E-Mails fehlt')
+    }
   }
   if (step.type === 'DELAY' && isLast) {
     warnings.push('Delay am Ende ist überflüssig')

@@ -480,6 +480,8 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
                       step={step}
                       index={index}
                       isLast={index === steps.length - 1}
+                      prevStepType={index > 0 ? steps[index - 1].type : null}
+                      nextStepType={index < steps.length - 1 ? steps[index + 1].type : null}
                       onEdit={() => step.type === 'EMAIL' && setEditingStep(step)}
                       onUpdate={updateStep}
                       onDelete={() => deleteStep(step.id)}

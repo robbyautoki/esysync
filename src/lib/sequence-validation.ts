@@ -103,8 +103,15 @@ export function validateSequence(steps: Step[]): ValidationError[] {
     }
   }
 
-  // Letzter Step ist Delay (Warnung, kein harter Fehler)
-  // Kann trotzdem aktiviert werden
+  // Letzter Step ist Delay
+  const lastStep = steps[steps.length - 1]
+  if (lastStep.type === 'DELAY') {
+    errors.push({
+      stepIndex: steps.length - 1,
+      stepId: lastStep.id,
+      message: 'Letzter Step darf kein Delay sein'
+    })
+  }
 
   return errors
 }

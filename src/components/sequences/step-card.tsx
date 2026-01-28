@@ -39,12 +39,13 @@ interface Step {
 interface StepCardProps {
   step: Step
   index: number
+  isLast?: boolean
   onEdit: () => void
   onUpdate: (step: Step) => void
   onDelete: () => void
 }
 
-export function StepCard({ step, index, onEdit, onUpdate, onDelete }: StepCardProps) {
+export function StepCard({ step, index, isLast, onEdit, onUpdate, onDelete }: StepCardProps) {
   const {
     attributes,
     listeners,
@@ -78,6 +79,9 @@ export function StepCard({ step, index, onEdit, onUpdate, onDelete }: StepCardPr
   if (step.type === 'EMAIL') {
     if (!hasContent) warnings.push('Kein Inhalt vorhanden')
     if (!hasFirstName) warnings.push('{{firstName}} fehlt')
+  }
+  if (step.type === 'DELAY' && isLast) {
+    warnings.push('Delay am Ende ist überflüssig')
   }
   const hasWarning = warnings.length > 0
 

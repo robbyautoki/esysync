@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Dialog,
   DialogContent,
@@ -13,7 +15,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Loader2, Trash2, Users, RotateCcw, Plus, Tag } from 'lucide-react'
+import { Loader2, Trash2, Users, RotateCcw, Plus, Tag, Search, ChevronRight } from 'lucide-react'
+
+const VISIBLE_LEADS = 5
+const FADED_LEADS = 2
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { SegmentSelect } from '@/components/segments/segment-select'
@@ -43,6 +48,26 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
   const [addSegmentOpen, setAddSegmentOpen] = useState(false)
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null)
   const [addingSegment, setAddingSegment] = useState(false)
+  const [search, setSearch] = useState('')
+  const [showAllModal, setShowAllModal] = useState(false)
+
+  // Gefilterte Leads basierend auf Suche
+  const filteredLeads = useMemo(() => {
+    if (!search.trim()) return leads
+    const searchLower = search.toLowerCase()
+    return leads.filter(lead => 
+      lead.email.toLowerCase().includes(searchLower) ||
+      lead.firstName.toLowerCase().includes(searchLower)
+    )
+  }, [leads, search])
+
+  // Leads für Kompaktansicht
+  const displayedLeads = useMemo(() => {
+    if (search.trim()) return filteredLeads // Bei Suche alle gefilterten zeigen
+    return filteredLeads.slice(0, VISIBLE_LEADS + FADED_LEADS)
+  }, [filteredLeads, search])
+
+  const remainingCount = leads.length - VISIBLE_LEADS - FADED_LEADS
 
   const fetchLeads = async () => {
     try {
@@ -177,6 +202,16 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
             <CardDescription>{leads.length} Lead(s)</CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            {/* Suche */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Lead suchen..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 w-40 h-9"
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -224,17 +259,23 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
             </div>
 
             {/* Leads */}
-            {leads.map((lead) => {
+            {displayedLeads.map((lead, index) => {
               const status = statusLabels[lead.status] || { label: lead.status, variant: 'secondary' as const }
+              const isFaded = !search.trim() && index >= VISIBLE_LEADS
               
               return (
                 <div 
                   key={lead.id} 
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50"
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-opacity ${
+                    isFaded 
+                      ? 'opacity-40 pointer-events-none' 
+                      : 'hover:bg-muted/50'
+                  }`}
                 >
                   <Checkbox 
                     checked={selectedIds.has(lead.id)}
                     onCheckedChange={() => toggleSelect(lead.id)}
+                    disabled={isFaded}
                   />
                   <div className="flex-1 min-w-0">
                     <Link 
@@ -260,7 +301,7 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
                       variant="ghost"
                       size="sm"
                       onClick={() => resetLead(lead.id)}
-                      disabled={resettingId === lead.id}
+                      disabled={resettingId === lead.id || isFaded}
                       title="Zurücksetzen"
                     >
                       {resettingId === lead.id ? (
@@ -273,6 +314,25 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
                 </div>
               )
             })}
+
+            {/* Alle anzeigen Button */}
+            {!search.trim() && remainingCount > 0 && (
+              <Button
+                variant="ghost"
+                className="w-full mt-2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowAllModal(true)}
+              >
+                +{remainingCount} weitere anzeigen
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+
+            {/* Keine Ergebnisse bei Suche */}
+            {search.trim() && filteredLeads.length === 0 && (
+              <div className="text-center py-4 text-muted-foreground text-sm">
+                Keine Leads gefunden für "{search}"
+              </div>
+            )}
           </div>
         )}
       </CardContent>
@@ -321,6 +381,112 @@ export function SequenceLeads({ sequenceId }: SequenceLeadsProps) {
                   Leads hinzufügen
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Alle Leads Modal */}
+      <Dialog open={showAllModal} onOpenChange={setShowAllModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Alle Leads ({leads.length})
+            </DialogTitle>
+            <DialogDescription>
+              Vollständige Liste aller Leads in dieser Sequenz
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Suche im Modal */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Lead suchen..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-1">
+              {filteredLeads.map((lead) => {
+                const status = statusLabels[lead.status] || { label: lead.status, variant: 'secondary' as const }
+                
+                return (
+                  <div 
+                    key={lead.id} 
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/50"
+                  >
+                    <Checkbox 
+                      checked={selectedIds.has(lead.id)}
+                      onCheckedChange={() => toggleSelect(lead.id)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <Link 
+                        href={`/leads/${lead.id}`}
+                        className="font-medium hover:underline"
+                        onClick={() => setShowAllModal(false)}
+                      >
+                        {lead.firstName}
+                      </Link>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {lead.email}
+                      </p>
+                    </div>
+                    <div className="w-16 text-center text-sm">
+                      {lead.currentStep}/{lead.totalSteps}
+                    </div>
+                    <Badge variant={status.variant} className="w-24 justify-center">
+                      {status.label}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => resetLead(lead.id)}
+                      disabled={resettingId === lead.id}
+                      title="Zurücksetzen"
+                    >
+                      {resettingId === lead.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                )
+              })}
+              
+              {search.trim() && filteredLeads.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  Keine Leads gefunden für "{search}"
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter>
+            {selectedIds.size > 0 && (
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  removeSelected()
+                  setShowAllModal(false)
+                }}
+                disabled={removing}
+              >
+                {removing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4 mr-2" />
+                )}
+                {selectedIds.size} entfernen
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setShowAllModal(false)}>
+              Schließen
             </Button>
           </DialogFooter>
         </DialogContent>

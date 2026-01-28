@@ -137,7 +137,7 @@ export function FolderSidebar({
   onDeleteFolder,
 }: FolderSidebarProps) {
   return (
-    <div className="w-56 flex-shrink-0 border-r pr-6 space-y-1 min-h-[300px]">
+    <div className="w-64 flex-shrink-0 border rounded-lg p-4 space-y-1 min-h-[300px] bg-muted/30">
       {/* Alle */}
       <div
         className={cn(

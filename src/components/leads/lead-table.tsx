@@ -52,12 +52,14 @@ import {
   ArrowUpDown,
   Mail,
   Tag,
-  Loader2
+  Loader2,
+  History
 } from 'lucide-react'
 import { formatRelativeDate } from '@/lib/utils'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { AddToSequenceModal } from './add-to-sequence-modal'
+import { LeadHistorySheet } from './lead-history-sheet'
 
 interface Lead {
   id: string
@@ -103,6 +105,8 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [sequenceModalOpen, setSequenceModalOpen] = useState(false)
   const [sequenceLeadIds, setSequenceLeadIds] = useState<string[]>([])
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyLeadId, setHistoryLeadId] = useState<string | null>(null)
   const [segmentConfirmOpen, setSegmentConfirmOpen] = useState(false)
   const [segmentLeadIds, setSegmentLeadIds] = useState<string[]>([])
   const [selectedSegment, setSelectedSegment] = useState<{ id: string; name: string } | null>(null)
@@ -477,12 +481,28 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
                     {formatRelativeDate(lead.createdAt)}
                   </TableCell>
                   <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
+                    <div className="flex items-center gap-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => {
+                              setHistoryLeadId(lead.id)
+                              setHistoryOpen(true)
+                            }}
+                          >
+                            <History className="h-4 w-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>History anzeigen</TooltipContent>
+                      </Tooltip>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
                           <Link href={`/leads/${lead.id}`}>
@@ -546,7 +566,8 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
                           Löschen
                         </DropdownMenuItem>
                       </DropdownMenuContent>
-                    </DropdownMenu>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
                 </TableRow>
               )})
@@ -653,6 +674,13 @@ export function LeadTable({ leads, total, page, totalPages }: LeadTableProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Lead History Sheet */}
+      <LeadHistorySheet
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        leadId={historyLeadId}
+      />
     </div>
   )
 }

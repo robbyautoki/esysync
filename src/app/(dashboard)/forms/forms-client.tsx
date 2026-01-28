@@ -48,14 +48,21 @@ interface Form {
   id: string
   name: string
   sequenceId: string | null
+  segmentId: string | null
   buttonText: string
   successMessage: string
   submissions: number
   createdAt: Date
   sequence: { id: string; name: string } | null
+  segment: { id: string; name: string } | null
 }
 
 interface Sequence {
+  id: string
+  name: string
+}
+
+interface Segment {
   id: string
   name: string
 }
@@ -72,11 +79,13 @@ function formatRelativeDate(date: Date): string {
   return `vor ${Math.floor(days / 30)} Monaten`
 }
 
-export function FormsClient({ forms: initialForms, sequences }: { 
+export function FormsClient({ forms: initialForms, sequences, segments: initialSegments }: { 
   forms: Form[]
   sequences: Sequence[]
+  segments: Segment[]
 }) {
   const [forms, setForms] = useState(initialForms)
+  const [segments, setSegments] = useState(initialSegments)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [createOpen, setCreateOpen] = useState(false)
   const [embedOpen, setEmbedOpen] = useState(false)
@@ -85,6 +94,8 @@ export function FormsClient({ forms: initialForms, sequences }: {
   const [newForm, setNewForm] = useState({
     name: '',
     sequenceId: '',
+    segmentId: '',
+    newSegmentName: '',
     buttonText: 'Anmelden',
     successMessage: 'Danke für deine Anmeldung!'
   })
@@ -119,6 +130,8 @@ export function FormsClient({ forms: initialForms, sequences }: {
         body: JSON.stringify({
           name: newForm.name,
           sequenceId: newForm.sequenceId || undefined,
+          segmentId: newForm.segmentId === '__new__' ? undefined : (newForm.segmentId || undefined),
+          newSegmentName: newForm.segmentId === '__new__' ? newForm.newSegmentName : undefined,
           buttonText: newForm.buttonText,
           successMessage: newForm.successMessage
         })
@@ -126,20 +139,26 @@ export function FormsClient({ forms: initialForms, sequences }: {
 
       if (!res.ok) throw new Error()
       
-      const createdForm = await res.json()
+      const data = await res.json()
       const selectedSequence = newForm.sequenceId 
         ? sequences.find(s => s.id === newForm.sequenceId) 
         : null
+
+      // Falls neues Segment erstellt wurde, zur Liste hinzufügen
+      if (data.segment && !segments.find(s => s.id === data.segment.id)) {
+        setSegments(prev => [...prev, { id: data.segment.id, name: data.segment.name }])
+      }
       
       setForms(prev => [{
-        ...createdForm,
+        ...data,
         createdAt: new Date(),
-        sequence: selectedSequence ? { id: selectedSequence.id, name: selectedSequence.name } : null
+        sequence: selectedSequence ? { id: selectedSequence.id, name: selectedSequence.name } : null,
+        segment: data.segment || null
       }, ...prev])
       
       toast.success('Formular erstellt')
       setCreateOpen(false)
-      setNewForm({ name: '', sequenceId: '', buttonText: 'Anmelden', successMessage: 'Danke für deine Anmeldung!' })
+      setNewForm({ name: '', sequenceId: '', segmentId: '', newSegmentName: '', buttonText: 'Anmelden', successMessage: 'Danke für deine Anmeldung!' })
     } catch {
       toast.error('Fehler beim Erstellen')
     } finally {
@@ -366,6 +385,39 @@ async function esysyncSubmit(e, formId) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Segment (optional)</Label>
+              <Select
+                value={newForm.segmentId || 'none'}
+                onValueChange={(v) => setNewForm({ ...newForm, segmentId: v === 'none' ? '' : v, newSegmentName: '' })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Kein Segment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Kein Segment</SelectItem>
+                  <SelectItem value="__new__">+ Neues Segment erstellen</SelectItem>
+                  {segments.map((seg) => (
+                    <SelectItem key={seg.id} value={seg.id}>
+                      {seg.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {newForm.segmentId === '__new__' && (
+                <Input
+                  className="mt-2"
+                  value={newForm.newSegmentName}
+                  onChange={(e) => setNewForm({ ...newForm, newSegmentName: e.target.value })}
+                  placeholder="Segment-Name eingeben"
+                />
+              )}
+              {newForm.sequenceId && !newForm.segmentId && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Ohne Segment wird automatisch eines erstellt: &quot;Form: {newForm.name || '...'}&quot;
+                </p>
+              )}
             </div>
             <div>
               <Label>Button-Text</Label>

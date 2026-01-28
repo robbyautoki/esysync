@@ -79,6 +79,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Add to segment if configured
+    if (form.segmentId) {
+      await db.leadSegment.upsert({
+        where: {
+          leadId_segmentId: {
+            leadId: lead.id,
+            segmentId: form.segmentId
+          }
+        },
+        create: {
+          leadId: lead.id,
+          segmentId: form.segmentId
+        },
+        update: {}
+      })
+    }
+
     // Increment form submissions
     await db.signupForm.update({
       where: { id: form.id },

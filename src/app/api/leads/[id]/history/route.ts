@@ -88,6 +88,10 @@ export async function GET(
       color: ls.segment.color
     }))
 
+    // Tags aus customFields extrahieren
+    const customFields = (lead.customFields as Record<string, unknown>) || {}
+    const tags = (customFields.tags as string[]) || []
+
     // Timeline formatieren
     const timeline = lead.events.map(event => {
       const metadata = event.metadata as Record<string, unknown> | null
@@ -123,6 +127,7 @@ export async function GET(
       },
       sequences,
       segments,
+      tags,
       timeline
     })
   } catch (error) {

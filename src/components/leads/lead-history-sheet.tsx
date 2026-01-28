@@ -65,6 +65,7 @@ interface LeadHistory {
     name: string
     color: string | null
   }>
+  tags: string[]
   timeline: Array<{
     id: string
     type: string
@@ -83,6 +84,8 @@ const eventIcons: Record<string, typeof Mail> = {
   EMAIL_CLICKED: MousePointerClick,
   EMAIL_BOUNCED: AlertCircle,
   UNSUBSCRIBED: UserMinus,
+  TAG_UPDATED: Tag,
+  SEGMENT_ADDED: UserPlus,
 }
 
 const eventLabels: Record<string, string> = {
@@ -91,6 +94,8 @@ const eventLabels: Record<string, string> = {
   EMAIL_CLICKED: 'Link geklickt',
   EMAIL_BOUNCED: 'E-Mail gebounced',
   UNSUBSCRIBED: 'Abgemeldet',
+  TAG_UPDATED: 'Tag aktualisiert',
+  SEGMENT_ADDED: 'Zu Segment hinzugefügt',
 }
 
 const statusIcons: Record<string, typeof Circle> = {
@@ -249,7 +254,7 @@ export function LeadHistorySheet({ open, onOpenChange, leadId }: LeadHistoryShee
               {data.segments.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <Tag className="h-4 w-4" />
+                    <UserPlus className="h-4 w-4" />
                     Segmente
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
@@ -264,6 +269,27 @@ export function LeadHistorySheet({ open, onOpenChange, leadId }: LeadHistoryShee
                         }}
                       >
                         {seg.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {data.tags.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                    <Tag className="h-4 w-4" />
+                    Tags
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.tags.map(tag => (
+                      <Badge 
+                        key={tag} 
+                        variant="secondary"
+                        className="text-xs"
+                      >
+                        {tag}
                       </Badge>
                     ))}
                   </div>

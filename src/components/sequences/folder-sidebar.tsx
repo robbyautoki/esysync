@@ -59,9 +59,9 @@ function FolderItem({
   return (
     <div
       className={cn(
-        'group flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors',
+        'group flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors',
         isSelected 
-          ? 'bg-primary/10 text-primary' 
+          ? 'bg-primary/10 text-primary font-medium' 
           : 'hover:bg-muted text-muted-foreground hover:text-foreground'
       )}
       onClick={() => !isEditing && onSelect()}
@@ -137,24 +137,28 @@ export function FolderSidebar({
   onDeleteFolder,
 }: FolderSidebarProps) {
   return (
-    <div className="w-48 flex-shrink-0 border rounded-lg p-2 space-y-1 h-fit">
+    <div className="w-56 flex-shrink-0 border-r pr-6 space-y-1 min-h-[300px]">
       {/* Alle */}
       <div
         className={cn(
-          'flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer transition-colors',
+          'flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors',
           selectedFolderId === null 
-            ? 'bg-primary/10 text-primary' 
+            ? 'bg-primary/10 text-primary font-medium' 
             : 'hover:bg-muted text-muted-foreground hover:text-foreground'
         )}
         onClick={() => onSelectFolder(null)}
       >
         <Layers className="h-4 w-4 flex-shrink-0" />
-        <span className="text-sm flex-1">Alle</span>
+        <span className="text-sm flex-1">Alle Sequenzen</span>
         <span className="text-xs tabular-nums opacity-60">{totalCount}</span>
       </div>
 
-      {/* Divider */}
-      {folders.length > 0 && <div className="border-t my-2" />}
+      {/* Ordner Section */}
+      <div className="pt-4">
+        <p className="px-3 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+          Ordner
+        </p>
+      </div>
 
       {/* Folders */}
       {folders.map(folder => (
@@ -169,16 +173,25 @@ export function FolderSidebar({
         />
       ))}
 
+      {/* Empty state */}
+      {folders.length === 0 && (
+        <p className="px-3 text-sm text-muted-foreground">
+          Noch keine Ordner
+        </p>
+      )}
+
       {/* Add Folder */}
-      <Button
-        variant="ghost"
-        size="sm"
-        className="w-full justify-start text-muted-foreground mt-2"
-        onClick={onCreateFolder}
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Neuer Ordner
-      </Button>
+      <div className="pt-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-muted-foreground"
+          onClick={onCreateFolder}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Neuer Ordner
+        </Button>
+      </div>
     </div>
   )
 }

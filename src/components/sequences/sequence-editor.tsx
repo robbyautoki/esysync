@@ -100,6 +100,7 @@ interface Step {
   segmentName?: string | null
   conditionType?: string | null
   conditionValue?: string | null
+  trueSteps?: FalseStep[] | null
   falseSteps?: FalseStep[] | null
 }
 
@@ -282,6 +283,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
       segmentName: null,
       conditionType: type === 'CONDITION' ? '' : null,
       conditionValue: type === 'CONDITION' ? '' : null,
+      trueSteps: type === 'CONDITION' ? [] : null,
       falseSteps: type === 'CONDITION' ? [] : null
     }
 

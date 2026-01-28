@@ -92,6 +92,7 @@ model SequenceStep {
   // Condition
   conditionType  String?  // "HAS_TAG", "NOT_HAS_TAG", "IN_SEGMENT", "NOT_IN_SEGMENT", "OPENED_EMAIL", "NOT_OPENED_EMAIL", "CLICKED_EMAIL"
   conditionValue String?  // Tag-Name, Segment-ID, oder Step-ID
+  trueSteps      Json?    // Array von Steps die bei TRUE ausgeführt werden
   falseSteps     Json?    // Array von Steps die bei FALSE ausgeführt werden
 
   // A/B Testing

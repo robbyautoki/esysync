@@ -365,6 +365,34 @@ export async function GET(request: NextRequest) {
             state.sequenceId
           )
 
+          // Falls JA und trueSteps vorhanden, diese ausführen
+          if (conditionMet && currentStep.trueSteps && Array.isArray(currentStep.trueSteps)) {
+            for (const trueStep of currentStep.trueSteps as any[]) {
+              if (trueStep.type === 'TAG' && trueStep.tagValue) {
+                const customFields = (state.lead.customFields as Record<string, unknown>) || {}
+                const tags = (customFields.tags as string[]) || []
+                
+                if (trueStep.tagAction === 'add') {
+                  if (!tags.includes(trueStep.tagValue)) {
+                    tags.push(trueStep.tagValue)
+                  }
+                } else if (trueStep.tagAction === 'remove') {
+                  const index = tags.indexOf(trueStep.tagValue)
+                  if (index > -1) {
+                    tags.splice(index, 1)
+                  }
+                }
+
+                await db.lead.update({
+                  where: { id: state.leadId },
+                  data: {
+                    customFields: { ...customFields, tags }
+                  }
+                })
+              }
+            }
+          }
+
           // Falls NEIN und falseSteps vorhanden, diese ausführen
           if (!conditionMet && currentStep.falseSteps && Array.isArray(currentStep.falseSteps)) {
             for (const falseStep of currentStep.falseSteps as any[]) {

@@ -14,6 +14,7 @@ const createStepSchema = z.object({
   targetSegmentId: z.string().nullable().optional(),
   conditionType: z.string().nullable().optional(),
   conditionValue: z.string().nullable().optional(),
+  trueSteps: z.any().nullable().optional(),
   falseSteps: z.any().nullable().optional()
 })
 
@@ -39,6 +40,7 @@ export async function POST(
         targetSegmentId: data.targetSegmentId,
         conditionType: data.conditionType,
         conditionValue: data.conditionValue,
+        trueSteps: data.trueSteps,
         falseSteps: data.falseSteps
       }
     })

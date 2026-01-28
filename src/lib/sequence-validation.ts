@@ -21,6 +21,7 @@ interface Step {
   targetSegmentId?: string | null
   conditionType?: string | null
   conditionValue?: string | null
+  trueSteps?: FalseStep[] | null
   falseSteps?: FalseStep[] | null
 }
 
@@ -157,6 +158,27 @@ export function validateSequence(steps: Step[]): ValidationError[] {
           stepId: step.id,
           message: `Bedingung ${i + 1} hat keinen Wert`
         })
+      }
+
+      // Validiere True-Steps
+      if (step.trueSteps && step.trueSteps.length > 0) {
+        for (let j = 0; j < step.trueSteps.length; j++) {
+          const ts = step.trueSteps[j]
+          if (ts.type === 'EMAIL' && (!ts.subject || ts.subject.trim() === '')) {
+            errors.push({
+              stepIndex: i,
+              stepId: step.id,
+              message: `Bedingung ${i + 1}: Falls-JA E-Mail ${j + 1} hat keinen Betreff`
+            })
+          }
+          if (ts.type === 'TAG' && (!ts.tagValue || ts.tagValue.trim() === '')) {
+            errors.push({
+              stepIndex: i,
+              stepId: step.id,
+              message: `Bedingung ${i + 1}: Falls-JA Tag ${j + 1} hat keinen Namen`
+            })
+          }
+        }
       }
 
       // Validiere False-Steps

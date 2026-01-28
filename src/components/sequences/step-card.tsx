@@ -52,6 +52,7 @@ interface Step {
   segmentName?: string | null
   conditionType?: string | null
   conditionValue?: string | null
+  trueSteps?: FalseStep[] | null
   falseSteps?: FalseStep[] | null
 }
 
@@ -69,6 +70,7 @@ interface StepCardProps {
 }
 
 export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEdit, onUpdate, onDelete, emailSteps = [], segments = [] }: StepCardProps) {
+  const [trueStepsOpen, setTrueStepsOpen] = useState(true)
   const [falseStepsOpen, setFalseStepsOpen] = useState(true)
   const {
     attributes,
@@ -175,6 +177,33 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
   const deleteFalseStep = (falseStepId: string) => {
     const currentFalseSteps = step.falseSteps || []
     onUpdate({ ...step, falseSteps: currentFalseSteps.filter(fs => fs.id !== falseStepId) })
+  }
+
+  const addTrueStep = (type: 'EMAIL' | 'DELAY' | 'TAG') => {
+    const newTrueStep: FalseStep = {
+      id: `true-${Date.now()}`,
+      type,
+      subject: type === 'EMAIL' ? '' : null,
+      delayValue: type === 'DELAY' ? 1 : null,
+      delayUnit: type === 'DELAY' ? 'days' : null,
+      tagAction: type === 'TAG' ? 'add' : null,
+      tagValue: type === 'TAG' ? '' : null,
+    }
+    const currentTrueSteps = step.trueSteps || []
+    onUpdate({ ...step, trueSteps: [...currentTrueSteps, newTrueStep] })
+  }
+
+  const updateTrueStep = (trueStepId: string, updates: Partial<FalseStep>) => {
+    const currentTrueSteps = step.trueSteps || []
+    const updated = currentTrueSteps.map(ts => 
+      ts.id === trueStepId ? { ...ts, ...updates } : ts
+    )
+    onUpdate({ ...step, trueSteps: updated })
+  }
+
+  const deleteTrueStep = (trueStepId: string) => {
+    const currentTrueSteps = step.trueSteps || []
+    onUpdate({ ...step, trueSteps: currentTrueSteps.filter(ts => ts.id !== trueStepId) })
   }
 
   return (
@@ -427,6 +456,122 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
         </AlertDialog>
       </div>
       </div>
+
+      {/* True Steps Section für CONDITION */}
+      {step.type === 'CONDITION' && (
+        <Collapsible open={trueStepsOpen} onOpenChange={setTrueStepsOpen} className="col-span-full mt-2">
+          <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground ml-14">
+            {trueStepsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <span className="font-medium text-green-600">Falls JA:</span>
+            <span className="text-xs">({step.trueSteps?.length || 0} Steps)</span>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="ml-14 mt-2 space-y-2">
+            <div className="border-l-2 border-green-200 pl-4 space-y-2">
+              {(step.trueSteps || []).map((ts) => (
+                <div key={ts.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md">
+                  <div className={cn(
+                    "w-6 h-6 rounded flex items-center justify-center text-xs",
+                    ts.type === 'EMAIL' && "bg-blue-100 text-blue-600",
+                    ts.type === 'DELAY' && "bg-orange-100 text-orange-600",
+                    ts.type === 'TAG' && "bg-purple-100 text-purple-600"
+                  )}>
+                    {ts.type === 'EMAIL' && <Mail className="h-3 w-3" />}
+                    {ts.type === 'DELAY' && <Clock className="h-3 w-3" />}
+                    {ts.type === 'TAG' && <Tag className="h-3 w-3" />}
+                  </div>
+
+                  {ts.type === 'EMAIL' && (
+                    <Input
+                      type="text"
+                      placeholder="Betreff"
+                      value={ts.subject || ''}
+                      onChange={(e) => updateTrueStep(ts.id, { subject: e.target.value })}
+                      className="flex-1 h-7 text-sm"
+                    />
+                  )}
+
+                  {ts.type === 'DELAY' && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">Warte</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={ts.delayValue || 1}
+                        onChange={(e) => updateTrueStep(ts.id, { delayValue: parseInt(e.target.value) || 1 })}
+                        className="w-16 h-7 text-sm"
+                      />
+                      <Select 
+                        value={ts.delayUnit || 'days'} 
+                        onValueChange={(value) => updateTrueStep(ts.id, { delayUnit: value })}
+                      >
+                        <SelectTrigger className="w-24 h-7 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {delayUnits.map(unit => (
+                            <SelectItem key={unit.value} value={unit.value}>
+                              {unit.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {ts.type === 'TAG' && (
+                    <div className="flex items-center gap-1">
+                      <Select 
+                        value={ts.tagAction || 'add'} 
+                        onValueChange={(value) => updateTrueStep(ts.id, { tagAction: value })}
+                      >
+                        <SelectTrigger className="w-24 h-7 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="add">Hinzufügen</SelectItem>
+                          <SelectItem value="remove">Entfernen</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="text"
+                        placeholder="Tag"
+                        value={ts.tagValue || ''}
+                        onChange={(e) => updateTrueStep(ts.id, { tagValue: e.target.value })}
+                        className="w-32 h-7 text-sm"
+                      />
+                    </div>
+                  )}
+
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    onClick={() => deleteTrueStep(ts.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+
+              {/* Add True Step Buttons */}
+              <div className="flex items-center gap-2 pt-1">
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addTrueStep('EMAIL')}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  E-Mail
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addTrueStep('DELAY')}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Delay
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addTrueStep('TAG')}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Tag
+                </Button>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
 
       {/* False Steps Section für CONDITION */}
       {step.type === 'CONDITION' && (

@@ -52,6 +52,7 @@ interface Step {
   segmentName?: string | null
   conditionType?: string | null
   conditionValue?: string | null
+  trueSteps?: any[] | null
   falseSteps?: any[] | null
 }
 

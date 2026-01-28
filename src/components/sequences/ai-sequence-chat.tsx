@@ -11,11 +11,13 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Input } from '@/components/ui/input'
 import { Message } from '@/components/ai/message'
 import { Conversation, ConversationContent } from '@/components/ai/conversation'
 import { PromptInput } from '@/components/ai/prompt-input'
 import { Loader } from '@/components/ai/loader'
-import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check } from 'lucide-react'
+import { Mail, Clock, Tag, FolderInput, GitBranch, Sparkles, Check, RefreshCw, Globe, Zap, Search } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface Step {
@@ -77,6 +79,13 @@ const ONBOARDING_QUESTIONS = [
   { key: 'tone', question: 'Welchen Ton sollen die E-Mails haben? (z.B. professionell, locker, freundlich)' },
 ]
 
+const QUICK_ACTIONS = [
+  { label: 'Willkommens-Serie', prompt: 'Erstelle eine Willkommens-Serie für neue Newsletter-Abonnenten mit 3-4 E-Mails' },
+  { label: 'Re-Engagement', prompt: 'Erstelle eine Re-Engagement-Kampagne für inaktive Kunden' },
+  { label: 'Onboarding', prompt: 'Erstelle eine Onboarding-Serie für neue Nutzer mit Produkt-Tipps' },
+  { label: 'Newsletter-Serie', prompt: 'Erstelle eine regelmäßige Newsletter-Serie mit wertvollen Inhalten' },
+]
+
 export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }: AISequenceChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
@@ -86,6 +95,11 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
   const [profileLoading, setProfileLoading] = useState(true)
   const [onboardingStep, setOnboardingStep] = useState(0)
   const [onboardingAnswers, setOnboardingAnswers] = useState<Partial<CompanyProfile>>({})
+  const [showQuickActions, setShowQuickActions] = useState(false)
+  const [websiteUrl, setWebsiteUrl] = useState('')
+  const [researchMode, setResearchMode] = useState<'none' | 'quick' | 'deep' | 'confirm'>('none')
+  const [researchResult, setResearchResult] = useState<CompanyProfile | null>(null)
+  const [stepsLoading, setStepsLoading] = useState(false)
 
   // Lade Unternehmensprofil beim Öffnen
   useEffect(() => {
@@ -102,19 +116,21 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
         const data = await res.json()
         if (data.companyProfile) {
           setCompanyProfile(data.companyProfile)
+          setShowQuickActions(true)
           // Begrüßung mit Profil
           setMessages([{
             id: 'welcome',
             role: 'assistant',
-            content: `Hey ${data.companyProfile.companyName}! 👋\n\nWas für eine Kampagne möchtest du erstellen? Beschreibe kurz dein Ziel, z.B.:\n\n• "Willkommensserie für neue Newsletter-Abonnenten"\n• "Re-Engagement für inaktive Kunden"\n• "Onboarding-Serie für neue Nutzer"`
+            content: `Hey ${data.companyProfile.companyName}! 👋\n\nWas für eine Kampagne möchtest du erstellen?`
           }])
         } else {
           // Onboarding starten
           setMessages([{
             id: 'onboarding-start',
             role: 'assistant',
-            content: 'Bevor wir loslegen, möchte ich dich kurz kennenlernen! Das hilft mir, bessere Kampagnen für dich zu erstellen. 🚀\n\n' + ONBOARDING_QUESTIONS[0].question
+            content: 'Willkommen! 🚀 Bevor wir loslegen, möchte ich dein Unternehmen kennenlernen.\n\nWie möchtest du starten?'
           }])
+          setResearchMode('none')
         }
       }
     } catch {
@@ -132,10 +148,100 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
         body: JSON.stringify({ companyProfile: profile })
       })
       setCompanyProfile(profile)
+      setShowQuickActions(true)
       toast.success('Profil gespeichert!')
     } catch {
       toast.error('Fehler beim Speichern')
     }
+  }
+
+  const resetProfile = () => {
+    setCompanyProfile(null)
+    setOnboardingStep(0)
+    setOnboardingAnswers({})
+    setShowQuickActions(false)
+    setResearchMode('none')
+    setMessages([{
+      id: 'reset',
+      role: 'assistant',
+      content: 'Okay, lass uns von vorne starten! 🔄\n\nWie möchtest du dein Unternehmensprofil erstellen?'
+    }])
+  }
+
+  const startResearch = async (deep: boolean) => {
+    if (!websiteUrl.trim()) {
+      toast.error('Bitte gib eine URL ein')
+      return
+    }
+
+    setMessages(prev => [...prev, {
+      id: `user-url-${Date.now()}`,
+      role: 'user',
+      content: websiteUrl
+    }])
+
+    setLoading(true)
+    setResearchMode(deep ? 'deep' : 'quick')
+
+    try {
+      const res = await fetch('/api/ai/research-website', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: websiteUrl, deep })
+      })
+
+      if (!res.ok) throw new Error('Fehler bei der Recherche')
+
+      const data = await res.json()
+      setResearchResult(data.profile)
+      setResearchMode('confirm')
+
+      setMessages(prev => [...prev, {
+        id: `research-result-${Date.now()}`,
+        role: 'assistant',
+        content: `Hier ist meine Zusammenfassung:\n\n• **Unternehmen:** ${data.profile.companyName}\n• **Branche:** ${data.profile.industry}\n• **Zielgruppe:** ${data.profile.targetAudience}\n• **Tonalität:** ${data.profile.tone}\n${data.profile.products ? `• **Produkte:** ${data.profile.products}` : ''}\n\nPasst das so?`
+      }])
+    } catch {
+      toast.error('Recherche fehlgeschlagen')
+      setResearchMode('none')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const confirmResearch = async (confirmed: boolean) => {
+    if (confirmed && researchResult) {
+      await saveProfile(researchResult)
+      setMessages(prev => [...prev, {
+        id: `confirmed-${Date.now()}`,
+        role: 'assistant',
+        content: `Perfekt! 🎉 Jetzt können wir loslegen.\n\nWas für eine Kampagne möchtest du erstellen?`
+      }])
+      setResearchMode('none')
+      setShowQuickActions(true)
+    } else {
+      setResearchMode('none')
+      setMessages(prev => [...prev, {
+        id: `retry-${Date.now()}`,
+        role: 'assistant',
+        content: 'Okay, wie möchtest du fortfahren?'
+      }])
+    }
+  }
+
+  const startManualOnboarding = () => {
+    setOnboardingStep(0)
+    setMessages(prev => [...prev, {
+      id: `manual-start-${Date.now()}`,
+      role: 'assistant',
+      content: ONBOARDING_QUESTIONS[0].question
+    }])
+    setResearchMode('none')
+  }
+
+  const handleQuickAction = (prompt: string) => {
+    setShowQuickActions(false)
+    handleSubmit(prompt)
   }
 
   const handleSubmit = async (input: string) => {
@@ -183,6 +289,8 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
     }
     setMessages(prev => [...prev, userMessage])
     setLoading(true)
+    setStepsLoading(true)
+    setGeneratedSteps([])
 
     try {
       const res = await fetch('/api/ai/chat-sequence', {
@@ -221,6 +329,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
       }])
     } finally {
       setLoading(false)
+      setStepsLoading(false)
     }
   }
 
@@ -272,10 +381,18 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[80vh] flex flex-col p-0">
         <SheetHeader className="px-6 py-4 border-b flex-shrink-0">
-          <SheetTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            KI Sequenz-Builder
-          </SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              KI Sequenz-Builder
+            </SheetTitle>
+            {companyProfile && (
+              <Button variant="ghost" size="sm" onClick={resetProfile}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Profil ändern
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
         <div className="flex-1 flex overflow-hidden">
@@ -288,7 +405,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
             ) : (
               <>
                 <ScrollArea className="flex-1">
-                  <ConversationContent className="px-4">
+                  <ConversationContent className="px-6">
                     {messages.map(msg => (
                       <Message key={msg.id} role={msg.role}>
                         {msg.content}
@@ -299,20 +416,108 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                         <Loader text="Generiere Kampagne..." />
                       </Message>
                     )}
+
+                    {/* Quick Actions nach Begrüßung */}
+                    {showQuickActions && !loading && (
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {QUICK_ACTIONS.map((action, i) => (
+                          <Button
+                            key={i}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleQuickAction(action.prompt)}
+                          >
+                            {action.label}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Onboarding Options (Website oder Manuell) */}
+                    {!companyProfile && onboardingStep === 0 && researchMode === 'none' && !loading && (
+                      <div className="space-y-4 mt-4">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setResearchMode('quick')}
+                          >
+                            <Globe className="w-4 h-4 mr-2" />
+                            Website analysieren
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={startManualOnboarding}
+                          >
+                            Manuell eingeben
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Website URL Eingabe */}
+                    {!companyProfile && (researchMode === 'quick' || researchMode === 'deep') && !loading && (
+                      <div className="space-y-3 mt-4">
+                        <p className="text-sm text-muted-foreground">
+                          Gib mir deine Website-URL:
+                        </p>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="https://..."
+                            value={websiteUrl}
+                            onChange={(e) => setWebsiteUrl(e.target.value)}
+                            className="flex-1"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => startResearch(false)}
+                          >
+                            <Zap className="w-4 h-4 mr-2" />
+                            Schnelle Recherche
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => startResearch(true)}
+                          >
+                            <Search className="w-4 h-4 mr-2" />
+                            Tiefe Recherche
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recherche Bestätigung */}
+                    {researchMode === 'confirm' && !loading && (
+                      <div className="flex gap-2 mt-4">
+                        <Button size="sm" onClick={() => confirmResearch(true)}>
+                          <Check className="w-4 h-4 mr-2" />
+                          Passt so
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => confirmResearch(false)}>
+                          Nochmal versuchen
+                        </Button>
+                      </div>
+                    )}
                   </ConversationContent>
                 </ScrollArea>
-                <PromptInput 
-                  onSubmit={handleSubmit}
-                  placeholder={!companyProfile ? 'Antwort eingeben...' : 'Beschreibe deine Kampagne...'}
-                  loading={loading}
-                />
+                <div className="px-6 pb-4">
+                  <PromptInput 
+                    onSubmit={handleSubmit}
+                    placeholder={!companyProfile ? 'Antwort eingeben...' : 'Beschreibe deine Kampagne...'}
+                    loading={loading}
+                  />
+                </div>
               </>
             )}
           </div>
 
           {/* Preview-Bereich (rechts) */}
-          <div className="w-80 flex flex-col bg-muted/30">
-            <div className="p-4 border-b">
+          <div className="w-96 flex flex-col bg-muted/30">
+            <div className="px-6 py-4 border-b">
               <h3 className="font-medium text-sm">Generierte Steps</h3>
               {generatedSteps.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
@@ -322,8 +527,17 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="p-4 space-y-2">
-                {generatedSteps.length === 0 ? (
+              <div className="px-6 py-4 space-y-2">
+                {stepsLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                    <p className="text-xs text-muted-foreground text-center mt-4">
+                      Wird mit KI generiert...
+                    </p>
+                  </div>
+                ) : generatedSteps.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
                     Beschreibe deine Kampagne im Chat, um Steps zu generieren
                   </p>
@@ -350,14 +564,14 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="text-xs">
+                              <Badge variant="secondary" className="text-xs flex-shrink-0">
                                 {index + 1}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
                                 {step.type}
                               </span>
                             </div>
-                            <p className="text-sm font-medium mt-1 truncate">
+                            <p className="text-sm font-medium mt-1 break-words">
                               {getStepLabel(step)}
                             </p>
                           </div>
@@ -370,7 +584,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
             </ScrollArea>
 
             {generatedSteps.length > 0 && (
-              <div className="p-4 border-t space-y-2">
+              <div className="px-6 py-4 border-t space-y-2">
                 <Button 
                   className="w-full" 
                   onClick={handleApply}

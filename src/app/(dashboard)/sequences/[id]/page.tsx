@@ -27,7 +27,12 @@ export default async function SequenceEditorPage({ params }: { params: { id: str
   const serializedSequence = {
     ...sequence,
     scheduledStartAt: sequence.scheduledStartAt?.toISOString() ?? null,
+    // Cast steps with proper types for client
+    steps: sequence.steps.map(step => ({
+      ...step,
+      falseSteps: step.falseSteps as any[] | null
+    }))
   }
 
-  return <SequenceEditor sequence={serializedSequence} />
+  return <SequenceEditor sequence={serializedSequence as any} />
 }

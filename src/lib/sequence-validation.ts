@@ -1,6 +1,16 @@
+interface FalseStep {
+  id: string
+  type: 'EMAIL' | 'DELAY' | 'TAG'
+  subject?: string | null
+  delayValue?: number | null
+  delayUnit?: string | null
+  tagAction?: string | null
+  tagValue?: string | null
+}
+
 interface Step {
   id: string
-  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT'
+  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION'
   order: number
   subject?: string | null
   content?: { type: string; content?: unknown[] } | null
@@ -9,6 +19,9 @@ interface Step {
   tagAction?: string | null
   tagValue?: string | null
   targetSegmentId?: string | null
+  conditionType?: string | null
+  conditionValue?: string | null
+  falseSteps?: FalseStep[] | null
 }
 
 interface ValidationError {
@@ -124,6 +137,47 @@ export function validateSequence(steps: Step[]): ValidationError[] {
           stepId: step.id,
           message: `Segment ${i + 1} hat kein Ziel-Segment`
         })
+      }
+    }
+
+    if (step.type === 'CONDITION') {
+      // Bedingung ohne Typ
+      if (!step.conditionType || step.conditionType.trim() === '') {
+        errors.push({
+          stepIndex: i,
+          stepId: step.id,
+          message: `Bedingung ${i + 1} hat keinen Typ`
+        })
+      }
+      
+      // Bedingung ohne Wert (außer für allgemeine Typen)
+      if (step.conditionType && !step.conditionValue?.trim()) {
+        errors.push({
+          stepIndex: i,
+          stepId: step.id,
+          message: `Bedingung ${i + 1} hat keinen Wert`
+        })
+      }
+
+      // Validiere False-Steps
+      if (step.falseSteps && step.falseSteps.length > 0) {
+        for (let j = 0; j < step.falseSteps.length; j++) {
+          const fs = step.falseSteps[j]
+          if (fs.type === 'EMAIL' && (!fs.subject || fs.subject.trim() === '')) {
+            errors.push({
+              stepIndex: i,
+              stepId: step.id,
+              message: `Bedingung ${i + 1}: Falls-NEIN E-Mail ${j + 1} hat keinen Betreff`
+            })
+          }
+          if (fs.type === 'TAG' && (!fs.tagValue || fs.tagValue.trim() === '')) {
+            errors.push({
+              stepIndex: i,
+              stepId: step.id,
+              message: `Bedingung ${i + 1}: Falls-NEIN Tag ${j + 1} hat keinen Namen`
+            })
+          }
+        }
       }
     }
   }

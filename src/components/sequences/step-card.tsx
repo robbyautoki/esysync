@@ -23,12 +23,24 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { Mail, Clock, GripVertical, Edit, Trash2, AlertTriangle, Tag, FolderInput } from 'lucide-react'
+import { Mail, Clock, GripVertical, Edit, Trash2, AlertTriangle, Tag, FolderInput, GitBranch, Plus, ChevronDown, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
+
+interface FalseStep {
+  id: string
+  type: 'EMAIL' | 'DELAY' | 'TAG'
+  subject?: string | null
+  delayValue?: number | null
+  delayUnit?: string | null
+  tagAction?: string | null
+  tagValue?: string | null
+}
 
 interface Step {
   id: string
-  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT'
+  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION'
   order: number
   subject?: string | null
   content?: any
@@ -38,20 +50,26 @@ interface Step {
   tagValue?: string | null
   targetSegmentId?: string | null
   segmentName?: string | null
+  conditionType?: string | null
+  conditionValue?: string | null
+  falseSteps?: FalseStep[] | null
 }
 
 interface StepCardProps {
   step: Step
   index: number
   isLast?: boolean
-  prevStepType?: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | null
-  nextStepType?: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | null
+  prevStepType?: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION' | null
+  nextStepType?: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION' | null
   onEdit: () => void
   onUpdate: (step: Step) => void
   onDelete: () => void
+  emailSteps?: Array<{ id: string; subject: string | null; index: number }>
+  segments?: Array<{ id: string; name: string }>
 }
 
-export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEdit, onUpdate, onDelete }: StepCardProps) {
+export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEdit, onUpdate, onDelete, emailSteps = [], segments = [] }: StepCardProps) {
+  const [falseStepsOpen, setFalseStepsOpen] = useState(true)
   const {
     attributes,
     listeners,
@@ -98,17 +116,79 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
   if (step.type === 'SEGMENT' && !step.targetSegmentId) {
     warnings.push('Segment nicht gewählt')
   }
+  if (step.type === 'CONDITION' && !step.conditionType) {
+    warnings.push('Bedingung nicht konfiguriert')
+  }
   const hasWarning = warnings.length > 0
+
+  const conditionTypes = [
+    { value: 'HAS_TAG', label: 'Hat Tag' },
+    { value: 'NOT_HAS_TAG', label: 'Hat Tag nicht' },
+    { value: 'IN_SEGMENT', label: 'Ist in Segment' },
+    { value: 'NOT_IN_SEGMENT', label: 'Ist nicht in Segment' },
+    { value: 'OPENED_EMAIL', label: 'Hat E-Mail geöffnet' },
+    { value: 'NOT_OPENED_EMAIL', label: 'Hat E-Mail nicht geöffnet' },
+    { value: 'CLICKED_EMAIL', label: 'Hat Link geklickt' },
+  ]
+
+  const getConditionLabel = () => {
+    if (!step.conditionType) return 'Bedingung wählen...'
+    const type = conditionTypes.find(t => t.value === step.conditionType)
+    const typeName = type?.label || step.conditionType
+    
+    if (step.conditionType?.includes('TAG') && step.conditionValue) {
+      return `${typeName}: "${step.conditionValue}"`
+    }
+    if (step.conditionType?.includes('SEGMENT') && step.conditionValue) {
+      const seg = segments.find(s => s.id === step.conditionValue)
+      return `${typeName}: ${seg?.name || 'Unbekannt'}`
+    }
+    if (step.conditionType?.includes('EMAIL') && step.conditionValue) {
+      const emailStep = emailSteps.find(e => e.id === step.conditionValue)
+      return `${typeName}: E-Mail ${emailStep ? emailStep.index + 1 : '?'}`
+    }
+    return typeName
+  }
+
+  const addFalseStep = (type: 'EMAIL' | 'DELAY' | 'TAG') => {
+    const newFalseStep: FalseStep = {
+      id: `false-${Date.now()}`,
+      type,
+      subject: type === 'EMAIL' ? 'Reminder' : null,
+      delayValue: type === 'DELAY' ? 1 : null,
+      delayUnit: type === 'DELAY' ? 'days' : null,
+      tagAction: type === 'TAG' ? 'add' : null,
+      tagValue: type === 'TAG' ? '' : null,
+    }
+    const currentFalseSteps = step.falseSteps || []
+    onUpdate({ ...step, falseSteps: [...currentFalseSteps, newFalseStep] })
+  }
+
+  const updateFalseStep = (falseStepId: string, updates: Partial<FalseStep>) => {
+    const currentFalseSteps = step.falseSteps || []
+    const updated = currentFalseSteps.map(fs => 
+      fs.id === falseStepId ? { ...fs, ...updates } : fs
+    )
+    onUpdate({ ...step, falseSteps: updated })
+  }
+
+  const deleteFalseStep = (falseStepId: string) => {
+    const currentFalseSteps = step.falseSteps || []
+    onUpdate({ ...step, falseSteps: currentFalseSteps.filter(fs => fs.id !== falseStepId) })
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-3 p-4 border rounded-lg bg-card",
+        "p-4 border rounded-lg bg-card",
+        step.type === 'CONDITION' ? "space-y-3" : "flex items-center gap-3",
         isDragging && "opacity-50 shadow-lg"
       )}
     >
+      {/* Main Row */}
+      <div className="flex items-center gap-3">
       {/* Drag Handle */}
       <Tooltip>
         <TooltipTrigger asChild>
@@ -134,12 +214,14 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
         step.type === 'EMAIL' && "bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400",
         step.type === 'DELAY' && "bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400",
         step.type === 'TAG' && "bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400",
-        step.type === 'SEGMENT' && "bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400"
+        step.type === 'SEGMENT' && "bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400",
+        step.type === 'CONDITION' && "bg-yellow-100 text-yellow-600 dark:bg-yellow-950 dark:text-yellow-400"
       )}>
         {step.type === 'EMAIL' && <Mail className="h-5 w-5" />}
         {step.type === 'DELAY' && <Clock className="h-5 w-5" />}
         {step.type === 'TAG' && <Tag className="h-5 w-5" />}
         {step.type === 'SEGMENT' && <FolderInput className="h-5 w-5" />}
+        {step.type === 'CONDITION' && <GitBranch className="h-5 w-5" />}
       </div>
 
       {/* Content */}
@@ -211,6 +293,76 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
             <p className="text-sm text-muted-foreground">In Segment verschieben</p>
           </div>
         )}
+
+        {step.type === 'CONDITION' && (
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">WENN</span>
+              <Select 
+                value={step.conditionType || ''} 
+                onValueChange={(value) => onUpdate({ ...step, conditionType: value, conditionValue: '' })}
+              >
+                <SelectTrigger className="w-48 h-8">
+                  <SelectValue placeholder="Bedingung wählen" />
+                </SelectTrigger>
+                <SelectContent>
+                  {conditionTypes.map(ct => (
+                    <SelectItem key={ct.value} value={ct.value}>
+                      {ct.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* Value Input basierend auf Condition Type */}
+              {step.conditionType?.includes('TAG') && (
+                <Input
+                  type="text"
+                  placeholder="Tag-Name"
+                  value={step.conditionValue || ''}
+                  onChange={(e) => onUpdate({ ...step, conditionValue: e.target.value })}
+                  className="w-40 h-8"
+                />
+              )}
+
+              {step.conditionType?.includes('SEGMENT') && (
+                <Select 
+                  value={step.conditionValue || ''} 
+                  onValueChange={(value) => onUpdate({ ...step, conditionValue: value })}
+                >
+                  <SelectTrigger className="w-40 h-8">
+                    <SelectValue placeholder="Segment wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {segments.map(seg => (
+                      <SelectItem key={seg.id} value={seg.id}>
+                        {seg.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {step.conditionType?.includes('EMAIL') && (
+                <Select 
+                  value={step.conditionValue || ''} 
+                  onValueChange={(value) => onUpdate({ ...step, conditionValue: value })}
+                >
+                  <SelectTrigger className="w-40 h-8">
+                    <SelectValue placeholder="E-Mail wählen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {emailSteps.map(es => (
+                      <SelectItem key={es.id} value={es.id}>
+                        E-Mail {es.index + 1}: {es.subject || 'Kein Betreff'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Warning + Actions */}
@@ -274,6 +426,123 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
           </AlertDialogContent>
         </AlertDialog>
       </div>
+      </div>
+
+      {/* False Steps Section für CONDITION */}
+      {step.type === 'CONDITION' && (
+        <Collapsible open={falseStepsOpen} onOpenChange={setFalseStepsOpen} className="col-span-full mt-2">
+          <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground ml-14">
+            {falseStepsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <span className="font-medium text-red-600">Falls NEIN:</span>
+            <span className="text-xs">({step.falseSteps?.length || 0} Steps)</span>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="ml-14 mt-2 space-y-2">
+            <div className="border-l-2 border-red-200 pl-4 space-y-2">
+              {(step.falseSteps || []).map((fs, fsIndex) => (
+                <div key={fs.id} className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-950/30 rounded-md">
+                  <div className={cn(
+                    "w-6 h-6 rounded flex items-center justify-center text-xs",
+                    fs.type === 'EMAIL' && "bg-blue-100 text-blue-600",
+                    fs.type === 'DELAY' && "bg-orange-100 text-orange-600",
+                    fs.type === 'TAG' && "bg-purple-100 text-purple-600"
+                  )}>
+                    {fs.type === 'EMAIL' && <Mail className="h-3 w-3" />}
+                    {fs.type === 'DELAY' && <Clock className="h-3 w-3" />}
+                    {fs.type === 'TAG' && <Tag className="h-3 w-3" />}
+                  </div>
+
+                  {fs.type === 'EMAIL' && (
+                    <Input
+                      type="text"
+                      placeholder="Betreff"
+                      value={fs.subject || ''}
+                      onChange={(e) => updateFalseStep(fs.id, { subject: e.target.value })}
+                      className="flex-1 h-7 text-sm"
+                    />
+                  )}
+
+                  {fs.type === 'DELAY' && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-muted-foreground">Warte</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={fs.delayValue || 1}
+                        onChange={(e) => updateFalseStep(fs.id, { delayValue: parseInt(e.target.value) || 1 })}
+                        className="w-16 h-7 text-sm"
+                      />
+                      <Select 
+                        value={fs.delayUnit || 'days'} 
+                        onValueChange={(value) => updateFalseStep(fs.id, { delayUnit: value })}
+                      >
+                        <SelectTrigger className="w-24 h-7 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {delayUnits.map(unit => (
+                            <SelectItem key={unit.value} value={unit.value}>
+                              {unit.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {fs.type === 'TAG' && (
+                    <div className="flex items-center gap-1">
+                      <Select 
+                        value={fs.tagAction || 'add'} 
+                        onValueChange={(value) => updateFalseStep(fs.id, { tagAction: value })}
+                      >
+                        <SelectTrigger className="w-24 h-7 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="add">Hinzufügen</SelectItem>
+                          <SelectItem value="remove">Entfernen</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="text"
+                        placeholder="Tag"
+                        value={fs.tagValue || ''}
+                        onChange={(e) => updateFalseStep(fs.id, { tagValue: e.target.value })}
+                        className="w-32 h-7 text-sm"
+                      />
+                    </div>
+                  )}
+
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    onClick={() => deleteFalseStep(fs.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+
+              {/* Add False Step Buttons */}
+              <div className="flex items-center gap-2 pt-1">
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addFalseStep('EMAIL')}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  E-Mail
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addFalseStep('DELAY')}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Delay
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addFalseStep('TAG')}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Tag
+                </Button>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
     </div>
   )
 }

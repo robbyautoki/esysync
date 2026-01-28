@@ -89,6 +89,11 @@ model SequenceStep {
   // Segment
   targetSegmentId String?
 
+  // Condition
+  conditionType  String?  // "HAS_TAG", "NOT_HAS_TAG", "IN_SEGMENT", "NOT_IN_SEGMENT", "OPENED_EMAIL", "NOT_OPENED_EMAIL", "CLICKED_EMAIL"
+  conditionValue String?  // Tag-Name, Segment-ID, oder Step-ID
+  falseSteps     Json?    // Array von Steps die bei FALSE ausgeführt werden
+
   // A/B Testing
   variants Json?
 
@@ -103,6 +108,7 @@ enum StepType {
   DELAY
   TAG
   SEGMENT
+  CONDITION
 }
 
 model SequenceState {

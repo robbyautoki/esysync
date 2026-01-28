@@ -40,7 +40,7 @@ import { AiEmailWriter } from './ai-email-writer'
 
 interface Step {
   id: string
-  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT'
+  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION'
   order: number
   subject?: string | null
   content?: any
@@ -50,6 +50,9 @@ interface Step {
   tagValue?: string | null
   targetSegmentId?: string | null
   segmentName?: string | null
+  conditionType?: string | null
+  conditionValue?: string | null
+  falseSteps?: any[] | null
 }
 
 interface EmailStepEditorProps {

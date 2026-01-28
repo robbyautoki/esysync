@@ -55,7 +55,8 @@ import {
   Sparkles,
   BarChart3,
   Tag,
-  FolderInput
+  FolderInput,
+  GitBranch
 } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -75,9 +76,19 @@ import { EmailStepEditor } from './email-step-editor'
 import { SequenceLeads } from './sequence-leads'
 import { SequenceTracking } from './sequence-tracking'
 
+interface FalseStep {
+  id: string
+  type: 'EMAIL' | 'DELAY' | 'TAG'
+  subject?: string | null
+  delayValue?: number | null
+  delayUnit?: string | null
+  tagAction?: string | null
+  tagValue?: string | null
+}
+
 interface Step {
   id: string
-  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT'
+  type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION'
   order: number
   subject?: string | null
   content?: any
@@ -87,6 +98,9 @@ interface Step {
   tagValue?: string | null
   targetSegmentId?: string | null
   segmentName?: string | null
+  conditionType?: string | null
+  conditionValue?: string | null
+  falseSteps?: FalseStep[] | null
 }
 
 interface Sequence {
@@ -253,7 +267,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
     }
   }
 
-  const addStep = async (type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT') => {
+  const addStep = async (type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION') => {
     const newStep: Step = {
       id: `temp-${Date.now()}`,
       type,
@@ -265,7 +279,10 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
       tagAction: type === 'TAG' ? 'add' : null,
       tagValue: type === 'TAG' ? '' : null,
       targetSegmentId: type === 'SEGMENT' ? '' : null,
-      segmentName: null
+      segmentName: null,
+      conditionType: type === 'CONDITION' ? '' : null,
+      conditionValue: type === 'CONDITION' ? '' : null,
+      falseSteps: type === 'CONDITION' ? [] : null
     }
 
     try {
@@ -460,6 +477,10 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
                 <FolderInput className="mr-2 h-4 w-4" />
                 Segment
               </Button>
+              <Button variant="outline" size="sm" onClick={() => addStep('CONDITION')}>
+                <GitBranch className="mr-2 h-4 w-4" />
+                Bedingung
+              </Button>
             </div>
           </div>
 
@@ -503,6 +524,10 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
                       onEdit={() => step.type === 'EMAIL' && setEditingStep(step)}
                       onUpdate={updateStep}
                       onDelete={() => deleteStep(step.id)}
+                      emailSteps={steps
+                        .filter((s, i) => s.type === 'EMAIL' && i < index)
+                        .map((s, i) => ({ id: s.id, subject: s.subject || null, index: steps.findIndex(st => st.id === s.id) }))
+                      }
                     />
                   ))}
                 </div>

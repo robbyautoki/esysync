@@ -356,6 +356,64 @@ export async function GET(request: NextRequest) {
           })
         }
 
+        // Handle CONDITION step
+        if (currentStep.type === 'CONDITION' && currentStep.conditionType) {
+          const conditionMet = await evaluateCondition(
+            state.lead,
+            currentStep.conditionType,
+            currentStep.conditionValue || '',
+            state.sequenceId
+          )
+
+          // Falls NEIN und falseSteps vorhanden, diese ausführen
+          if (!conditionMet && currentStep.falseSteps && Array.isArray(currentStep.falseSteps)) {
+            for (const falseStep of currentStep.falseSteps as any[]) {
+              if (falseStep.type === 'TAG' && falseStep.tagValue) {
+                const customFields = (state.lead.customFields as Record<string, unknown>) || {}
+                const tags = (customFields.tags as string[]) || []
+                
+                if (falseStep.tagAction === 'add') {
+                  if (!tags.includes(falseStep.tagValue)) {
+                    tags.push(falseStep.tagValue)
+                  }
+                } else if (falseStep.tagAction === 'remove') {
+                  const index = tags.indexOf(falseStep.tagValue)
+                  if (index > -1) {
+                    tags.splice(index, 1)
+                  }
+                }
+
+                await db.lead.update({
+                  where: { id: state.leadId },
+                  data: {
+                    customFields: { ...customFields, tags }
+                  }
+                })
+              }
+
+              if (falseStep.type === 'DELAY' && falseStep.delayValue) {
+                const delayMs = getDelayMs(falseStep.delayValue, falseStep.delayUnit || 'days')
+                await new Promise(resolve => setTimeout(resolve, Math.min(delayMs, 5000))) // Max 5s wait in cron
+              }
+
+              // EMAIL in falseSteps wird hier nicht vollständig unterstützt (würde eigenen Editor brauchen)
+            }
+          }
+
+          await db.event.create({
+            data: {
+              leadId: state.leadId,
+              type: 'TAG_UPDATED', // Wiederverwendet für Condition-Events
+              metadata: {
+                sequenceId: state.sequenceId,
+                stepId: currentStep.id,
+                conditionType: currentStep.conditionType,
+                conditionMet
+              }
+            }
+          })
+        }
+
         // Move to next step
         const nextStepIndex = state.currentStepIndex + 1
         const nextStep = state.sequence.steps[nextStepIndex]
@@ -428,5 +486,77 @@ function getDelayMs(value: number, unit: string): number {
       return value * 24 * 60 * 60 * 1000
     default:
       return value * 24 * 60 * 60 * 1000
+  }
+}
+
+async function evaluateCondition(
+  lead: { id: string; customFields: unknown },
+  conditionType: string,
+  conditionValue: string,
+  sequenceId: string
+): Promise<boolean> {
+  const customFields = (lead.customFields as Record<string, unknown>) || {}
+  const tags = (customFields.tags as string[]) || []
+
+  switch (conditionType) {
+    case 'HAS_TAG':
+      return tags.includes(conditionValue)
+      
+    case 'NOT_HAS_TAG':
+      return !tags.includes(conditionValue)
+      
+    case 'IN_SEGMENT':
+      const inSegment = await db.leadSegment.findUnique({
+        where: { leadId_segmentId: { leadId: lead.id, segmentId: conditionValue } }
+      })
+      return !!inSegment
+      
+    case 'NOT_IN_SEGMENT':
+      const notInSegment = await db.leadSegment.findUnique({
+        where: { leadId_segmentId: { leadId: lead.id, segmentId: conditionValue } }
+      })
+      return !notInSegment
+      
+    case 'OPENED_EMAIL':
+      const opened = await db.event.findFirst({
+        where: {
+          leadId: lead.id,
+          type: 'EMAIL_OPENED',
+          metadata: {
+            path: ['stepId'],
+            equals: conditionValue
+          }
+        }
+      })
+      return !!opened
+      
+    case 'NOT_OPENED_EMAIL':
+      const notOpened = await db.event.findFirst({
+        where: {
+          leadId: lead.id,
+          type: 'EMAIL_OPENED',
+          metadata: {
+            path: ['stepId'],
+            equals: conditionValue
+          }
+        }
+      })
+      return !notOpened
+      
+    case 'CLICKED_EMAIL':
+      const clicked = await db.event.findFirst({
+        where: {
+          leadId: lead.id,
+          type: 'EMAIL_CLICKED',
+          metadata: {
+            path: ['stepId'],
+            equals: conditionValue
+          }
+        }
+      })
+      return !!clicked
+      
+    default:
+      return false
   }
 }

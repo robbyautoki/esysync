@@ -100,6 +100,51 @@ targetSegmentId: String   // Segment-ID
 
 ---
 
+### CONDITION
+```prisma
+type: CONDITION
+conditionType: String     // "HAS_TAG", "NOT_HAS_TAG", "IN_SEGMENT", "NOT_IN_SEGMENT", "OPENED_EMAIL", "NOT_OPENED_EMAIL", "CLICKED_EMAIL"
+conditionValue: String    // Tag-Name, Segment-ID, oder Step-ID
+falseSteps: Json          // Array von Steps die bei FALSE ausgeführt werden
+```
+
+**Bedingungstypen:**
+| Typ | Wert | Beschreibung |
+|-----|------|--------------|
+| `HAS_TAG` | Tag-Name | Lead hat diesen Tag |
+| `NOT_HAS_TAG` | Tag-Name | Lead hat Tag nicht |
+| `IN_SEGMENT` | Segment-ID | Lead ist in Segment |
+| `NOT_IN_SEGMENT` | Segment-ID | Lead ist nicht in Segment |
+| `OPENED_EMAIL` | Step-ID | Lead hat E-Mail geöffnet |
+| `NOT_OPENED_EMAIL` | Step-ID | Lead hat E-Mail nicht geöffnet |
+| `CLICKED_EMAIL` | Step-ID | Lead hat Link geklickt |
+
+**falseSteps Format:**
+```json
+[
+  { "id": "...", "type": "TAG", "tagAction": "add", "tagValue": "nicht-geöffnet" },
+  { "id": "...", "type": "DELAY", "delayValue": 2, "delayUnit": "days" }
+]
+```
+
+**Validierung:**
+- conditionType muss gesetzt sein
+- conditionValue muss gesetzt sein
+- falseSteps werden einzeln validiert
+
+**Cron-Job:**
+1. Bedingung auswerten via `evaluateCondition()`
+2. Falls FALSE und falseSteps vorhanden: falseSteps ausführen (TAG, DELAY)
+3. Weiter zum nächsten Hauptstep
+
+**UI:**
+- Gelbes Icon (GitBranch)
+- Dropdown für Bedingungstyp
+- Wert-Input je nach Typ (Tag-Name, Segment-Dropdown, E-Mail-Dropdown)
+- Collapsible "Falls NEIN" Section mit Mini-Steps
+
+---
+
 ## Neuen Step-Typ hinzufügen
 
 ### 1. Prisma Schema

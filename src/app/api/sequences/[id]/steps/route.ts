@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 
 const createStepSchema = z.object({
-  type: z.enum(['EMAIL', 'DELAY', 'TAG', 'SEGMENT']),
+  type: z.enum(['EMAIL', 'DELAY', 'TAG', 'SEGMENT', 'CONDITION']),
   order: z.number(),
   subject: z.string().nullable().optional(),
   content: z.any().optional(),
@@ -11,7 +11,10 @@ const createStepSchema = z.object({
   delayUnit: z.string().nullable().optional(),
   tagAction: z.string().nullable().optional(),
   tagValue: z.string().nullable().optional(),
-  targetSegmentId: z.string().nullable().optional()
+  targetSegmentId: z.string().nullable().optional(),
+  conditionType: z.string().nullable().optional(),
+  conditionValue: z.string().nullable().optional(),
+  falseSteps: z.any().nullable().optional()
 })
 
 export async function POST(
@@ -33,7 +36,10 @@ export async function POST(
         delayUnit: data.delayUnit,
         tagAction: data.tagAction,
         tagValue: data.tagValue,
-        targetSegmentId: data.targetSegmentId
+        targetSegmentId: data.targetSegmentId,
+        conditionType: data.conditionType,
+        conditionValue: data.conditionValue,
+        falseSteps: data.falseSteps
       }
     })
 

@@ -136,7 +136,7 @@ export function EmailPreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0">
+      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0">
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
@@ -195,8 +195,9 @@ export function EmailPreviewModal({
                 srcDoc={fullEmailHtml}
                 className="w-full border-0"
                 style={{ 
-                  height: viewMode === 'desktop' ? '500px' : '600px',
-                  minHeight: '400px'
+                  height: 'auto',
+                  minHeight: '300px',
+                  maxHeight: '60vh'
                 }}
                 title="E-Mail Vorschau"
               />

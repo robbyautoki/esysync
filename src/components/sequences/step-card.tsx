@@ -23,9 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { Mail, Clock, GripVertical, Edit, Trash2, AlertTriangle, Tag, FolderInput, GitBranch, Plus, ChevronDown, ChevronRight } from 'lucide-react'
-import { useState } from 'react'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Mail, Clock, GripVertical, Edit, Trash2, AlertTriangle, Tag, FolderInput, GitBranch, Plus, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface FalseStep {
@@ -70,8 +68,6 @@ interface StepCardProps {
 }
 
 export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEdit, onUpdate, onDelete, emailSteps = [], segments = [] }: StepCardProps) {
-  const [trueStepsOpen, setTrueStepsOpen] = useState(true)
-  const [falseStepsOpen, setFalseStepsOpen] = useState(true)
   const {
     attributes,
     listeners,
@@ -457,20 +453,20 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
       </div>
       </div>
 
-      {/* True Steps Section für CONDITION */}
+      {/* Branches Grid für CONDITION */}
       {step.type === 'CONDITION' && (
-        <Collapsible open={trueStepsOpen} onOpenChange={setTrueStepsOpen} className="col-span-full mt-2">
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground ml-14">
-            {trueStepsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            <span className="font-medium text-green-600">Falls JA:</span>
-            <span className="text-xs">({step.trueSteps?.length || 0} Steps)</span>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="ml-14 mt-2 space-y-2">
-            <div className="border-l-2 border-green-200 pl-4 space-y-2">
+        <div className="grid grid-cols-2 gap-4 mt-3 ml-14">
+          {/* TRUE Branch Box */}
+          <div className="border rounded-lg p-3 bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+            <div className="flex items-center gap-2 mb-3 text-green-600 font-medium text-sm">
+              <Check className="h-4 w-4" />
+              Falls JA
+            </div>
+            <div className="space-y-2">
               {(step.trueSteps || []).map((ts) => (
-                <div key={ts.id} className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-950/30 rounded-md">
+                <div key={ts.id} className="flex items-center gap-2 p-2 bg-white dark:bg-green-950/30 rounded-md border border-green-100 dark:border-green-900">
                   <div className={cn(
-                    "w-6 h-6 rounded flex items-center justify-center text-xs",
+                    "w-6 h-6 rounded flex items-center justify-center text-xs flex-shrink-0",
                     ts.type === 'EMAIL' && "bg-blue-100 text-blue-600",
                     ts.type === 'DELAY' && "bg-orange-100 text-orange-600",
                     ts.type === 'TAG' && "bg-purple-100 text-purple-600"
@@ -486,25 +482,24 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                       placeholder="Betreff"
                       value={ts.subject || ''}
                       onChange={(e) => updateTrueStep(ts.id, { subject: e.target.value })}
-                      className="flex-1 h-7 text-sm"
+                      className="flex-1 h-7 text-sm min-w-0"
                     />
                   )}
 
                   {ts.type === 'DELAY' && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-muted-foreground">Warte</span>
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
                       <Input
                         type="number"
                         min={1}
                         value={ts.delayValue || 1}
                         onChange={(e) => updateTrueStep(ts.id, { delayValue: parseInt(e.target.value) || 1 })}
-                        className="w-16 h-7 text-sm"
+                        className="w-12 h-7 text-sm"
                       />
                       <Select 
                         value={ts.delayUnit || 'days'} 
                         onValueChange={(value) => updateTrueStep(ts.id, { delayUnit: value })}
                       >
-                        <SelectTrigger className="w-24 h-7 text-sm">
+                        <SelectTrigger className="w-20 h-7 text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -519,17 +514,17 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                   )}
 
                   {ts.type === 'TAG' && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
                       <Select 
                         value={ts.tagAction || 'add'} 
                         onValueChange={(value) => updateTrueStep(ts.id, { tagAction: value })}
                       >
-                        <SelectTrigger className="w-24 h-7 text-sm">
+                        <SelectTrigger className="w-16 h-7 text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="add">Hinzufügen</SelectItem>
-                          <SelectItem value="remove">Entfernen</SelectItem>
+                          <SelectItem value="add">+</SelectItem>
+                          <SelectItem value="remove">-</SelectItem>
                         </SelectContent>
                       </Select>
                       <Input
@@ -537,7 +532,7 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                         placeholder="Tag"
                         value={ts.tagValue || ''}
                         onChange={(e) => updateTrueStep(ts.id, { tagValue: e.target.value })}
-                        className="w-32 h-7 text-sm"
+                        className="flex-1 h-7 text-sm min-w-0"
                       />
                     </div>
                   )}
@@ -545,7 +540,7 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    className="h-6 w-6 flex-shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={() => deleteTrueStep(ts.id)}
                   >
                     <Trash2 className="h-3 w-3" />
@@ -553,40 +548,34 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                 </div>
               ))}
 
-              {/* Add True Step Buttons */}
-              <div className="flex items-center gap-2 pt-1">
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addTrueStep('EMAIL')}>
+              <div className="flex flex-wrap items-center gap-1 pt-1">
+                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addTrueStep('EMAIL')}>
                   <Plus className="h-3 w-3 mr-1" />
                   E-Mail
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addTrueStep('DELAY')}>
+                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addTrueStep('DELAY')}>
                   <Plus className="h-3 w-3 mr-1" />
                   Delay
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addTrueStep('TAG')}>
+                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addTrueStep('TAG')}>
                   <Plus className="h-3 w-3 mr-1" />
                   Tag
                 </Button>
               </div>
             </div>
-          </CollapsibleContent>
-        </Collapsible>
-      )}
+          </div>
 
-      {/* False Steps Section für CONDITION */}
-      {step.type === 'CONDITION' && (
-        <Collapsible open={falseStepsOpen} onOpenChange={setFalseStepsOpen} className="col-span-full mt-2">
-          <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground ml-14">
-            {falseStepsOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            <span className="font-medium text-red-600">Falls NEIN:</span>
-            <span className="text-xs">({step.falseSteps?.length || 0} Steps)</span>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="ml-14 mt-2 space-y-2">
-            <div className="border-l-2 border-red-200 pl-4 space-y-2">
-              {(step.falseSteps || []).map((fs, fsIndex) => (
-                <div key={fs.id} className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-950/30 rounded-md">
+          {/* FALSE Branch Box */}
+          <div className="border rounded-lg p-3 bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
+            <div className="flex items-center gap-2 mb-3 text-red-600 font-medium text-sm">
+              <X className="h-4 w-4" />
+              Falls NEIN
+            </div>
+            <div className="space-y-2">
+              {(step.falseSteps || []).map((fs) => (
+                <div key={fs.id} className="flex items-center gap-2 p-2 bg-white dark:bg-red-950/30 rounded-md border border-red-100 dark:border-red-900">
                   <div className={cn(
-                    "w-6 h-6 rounded flex items-center justify-center text-xs",
+                    "w-6 h-6 rounded flex items-center justify-center text-xs flex-shrink-0",
                     fs.type === 'EMAIL' && "bg-blue-100 text-blue-600",
                     fs.type === 'DELAY' && "bg-orange-100 text-orange-600",
                     fs.type === 'TAG' && "bg-purple-100 text-purple-600"
@@ -602,25 +591,24 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                       placeholder="Betreff"
                       value={fs.subject || ''}
                       onChange={(e) => updateFalseStep(fs.id, { subject: e.target.value })}
-                      className="flex-1 h-7 text-sm"
+                      className="flex-1 h-7 text-sm min-w-0"
                     />
                   )}
 
                   {fs.type === 'DELAY' && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-muted-foreground">Warte</span>
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
                       <Input
                         type="number"
                         min={1}
                         value={fs.delayValue || 1}
                         onChange={(e) => updateFalseStep(fs.id, { delayValue: parseInt(e.target.value) || 1 })}
-                        className="w-16 h-7 text-sm"
+                        className="w-12 h-7 text-sm"
                       />
                       <Select 
                         value={fs.delayUnit || 'days'} 
                         onValueChange={(value) => updateFalseStep(fs.id, { delayUnit: value })}
                       >
-                        <SelectTrigger className="w-24 h-7 text-sm">
+                        <SelectTrigger className="w-20 h-7 text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -635,17 +623,17 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                   )}
 
                   {fs.type === 'TAG' && (
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-1 min-w-0">
                       <Select 
                         value={fs.tagAction || 'add'} 
                         onValueChange={(value) => updateFalseStep(fs.id, { tagAction: value })}
                       >
-                        <SelectTrigger className="w-24 h-7 text-sm">
+                        <SelectTrigger className="w-16 h-7 text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="add">Hinzufügen</SelectItem>
-                          <SelectItem value="remove">Entfernen</SelectItem>
+                          <SelectItem value="add">+</SelectItem>
+                          <SelectItem value="remove">-</SelectItem>
                         </SelectContent>
                       </Select>
                       <Input
@@ -653,7 +641,7 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                         placeholder="Tag"
                         value={fs.tagValue || ''}
                         onChange={(e) => updateFalseStep(fs.id, { tagValue: e.target.value })}
-                        className="w-32 h-7 text-sm"
+                        className="flex-1 h-7 text-sm min-w-0"
                       />
                     </div>
                   )}
@@ -661,7 +649,7 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                    className="h-6 w-6 flex-shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={() => deleteFalseStep(fs.id)}
                   >
                     <Trash2 className="h-3 w-3" />
@@ -669,24 +657,23 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
                 </div>
               ))}
 
-              {/* Add False Step Buttons */}
-              <div className="flex items-center gap-2 pt-1">
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addFalseStep('EMAIL')}>
+              <div className="flex flex-wrap items-center gap-1 pt-1">
+                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addFalseStep('EMAIL')}>
                   <Plus className="h-3 w-3 mr-1" />
                   E-Mail
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addFalseStep('DELAY')}>
+                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addFalseStep('DELAY')}>
                   <Plus className="h-3 w-3 mr-1" />
                   Delay
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => addFalseStep('TAG')}>
+                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addFalseStep('TAG')}>
                   <Plus className="h-3 w-3 mr-1" />
                   Tag
                 </Button>
               </div>
             </div>
-          </CollapsibleContent>
-        </Collapsible>
+          </div>
+        </div>
       )}
     </div>
   )

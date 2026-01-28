@@ -414,6 +414,46 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
         setGeneratedSteps(data.steps)
         setSelectedStepIds(new Set(data.steps.map((s: Step) => s.id)))
       }
+
+      // Auto-Switch: KI signalisiert dass User dem Plan zugestimmt hat
+      if (data.shouldExecute && chatMode === 'plan' && data.steps?.length > 0) {
+        setChatMode('execute')
+        setLoading(true)
+        setStepsLoading(true)
+        
+        // Erneuter API-Call im Execute-Modus um E-Mail-Bodies zu generieren
+        const executeRes = await fetch('/api/ai/chat-sequence', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [...messages, userMessage, { role: 'assistant', content: data.message }].map(m => ({ role: m.role, content: m.content })),
+            companyProfile,
+            sequenceId,
+            mode: 'execute'
+          })
+        })
+
+        if (executeRes.ok) {
+          const executeData = await executeRes.json()
+          
+          const executeMessage: ChatMessage = {
+            id: `assistant-execute-${Date.now()}`,
+            role: 'assistant',
+            content: executeData.message,
+            steps: executeData.steps
+          }
+          
+          setMessages(prev => [...prev, executeMessage])
+          
+          if (executeData.steps?.length > 0) {
+            setGeneratedSteps(executeData.steps)
+            setSelectedStepIds(new Set(executeData.steps.map((s: Step) => s.id)))
+          }
+        }
+        
+        setLoading(false)
+        setStepsLoading(false)
+      }
     } catch {
       toast.error('Fehler beim Generieren')
       setMessages(prev => [...prev, {
@@ -719,13 +759,13 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
 
             <ScrollArea className="flex-1">
               <div className="px-6 py-4 space-y-2">
-                {stepsLoading ? (
+                {stepsLoading && chatMode === 'execute' ? (
                   <div className="space-y-3">
                     <Skeleton className="h-16 w-full" />
                     <Skeleton className="h-16 w-full" />
                     <Skeleton className="h-16 w-full" />
                     <p className="text-xs text-muted-foreground text-center mt-4">
-                      Wird mit KI generiert...
+                      Generiere E-Mail-Inhalte...
                     </p>
                   </div>
                 ) : generatedSteps.length === 0 ? (

@@ -98,7 +98,11 @@ export async function POST(req: NextRequest) {
           ...step,
           id: `ai-step-${Date.now()}-${index}`
         }))
-        return NextResponse.json({ message: args.message, steps: stepsWithIds })
+        return NextResponse.json({ 
+          message: args.message, 
+          steps: stepsWithIds,
+          shouldExecute: args.shouldExecute || false
+        })
       }
 
       return NextResponse.json({
@@ -155,7 +159,8 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         message: args.message,
-        steps: stepsWithIds
+        steps: stepsWithIds,
+        shouldExecute: args.shouldExecute || false
       })
     }
 
@@ -211,6 +216,10 @@ function getToolSchema(mode: 'plan' | 'execute') {
             properties: stepProperties,
             required: mode === 'execute' ? ['type', 'body'] : ['type']
           }
+        },
+        shouldExecute: {
+          type: 'boolean',
+          description: 'Setze auf true wenn der User dem Plan zugestimmt hat und bereit ist die E-Mails zu generieren. Nur im Plan-Modus relevant.'
         }
       },
       required: ['message', 'steps']
@@ -226,6 +235,10 @@ function getToolSchema(mode: 'plan' | 'execute') {
             properties: stepProperties,
             required: mode === 'execute' ? ['type', 'body'] : ['type']
           }
+        },
+        shouldExecute: {
+          type: 'boolean',
+          description: 'Setze auf true wenn der User dem Plan zugestimmt hat und bereit ist die E-Mails zu generieren. Nur im Plan-Modus relevant.'
         }
       },
       required: ['message', 'steps']
@@ -274,7 +287,11 @@ Für jeden EMAIL Step musst du einen vollständigen HTML body erstellen:
     : `
 ## MODUS: PLANEN (Plan)
 Du planst die Kampagnenstruktur - generiere NUR Betreffszeilen, keine E-Mail-Inhalte!
-Wenn der User mit dem Plan zufrieden ist, frage: "Soll ich jetzt die E-Mails ausformulieren?"
+
+### WICHTIG: shouldExecute Flag
+- Wenn du einen NEUEN Plan vorschlägst → setze shouldExecute: false und frage "Soll ich das so erstellen?" oder "Soll ich jetzt die E-Mails ausformulieren?"
+- Wenn der User ZUSTIMMT (z.B. "ja", "passt", "mach das", "erstellen", "los", "ok", "sieht gut aus", "gefällt mir") → setze shouldExecute: true und generiere die Steps
+- Bei Zustimmung: Das Frontend wechselt automatisch in den Ausführen-Modus um die vollständigen E-Mail-Texte zu erstellen
 `
 
   const basePrompt = `Du bist ein erfahrener E-Mail-Marketing-Berater. Deine Aufgabe ist es, den User zum BESTEN Ergebnis zu führen - nicht einfach Befehle auszuführen.

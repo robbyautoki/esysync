@@ -30,6 +30,7 @@ import {
   Bot
 } from 'lucide-react'
 import { tiptapToPlainText, SpamCheckResult, SpamIssue } from '@/lib/spam-check'
+import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
@@ -54,6 +55,12 @@ interface EmailStepEditorProps {
   onCancel: () => void
 }
 
+interface OpenAIIssue {
+  problem: string
+  suggestion: string
+  severity: 'high' | 'medium' | 'low'
+}
+
 interface SpamCheckApiResult {
   local: SpamCheckResult
   postmark?: {
@@ -61,7 +68,9 @@ interface SpamCheckApiResult {
     rules: Array<{ score: number; description: string }>
   }
   openai?: {
-    analysis: string
+    riskLevel: 'niedrig' | 'mittel' | 'hoch'
+    issues: OpenAIIssue[]
+    summary: string
   }
   overall: {
     score: number
@@ -586,6 +595,9 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
                         Keine SpamAssassin-Regeln ausgelöst
                       </p>
                     )}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      ℹ️ Header-Probleme (Message-Id, Date) werden beim echten Versand automatisch hinzugefügt.
+                    </p>
                   </div>
                 )}
 
@@ -595,10 +607,37 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
                     <h4 className="font-medium text-sm flex items-center gap-2">
                       <Bot className="h-4 w-4 text-muted-foreground" />
                       KI-Analyse
+                      <Badge variant={
+                        spamCheckResult.openai.riskLevel === 'niedrig' ? 'default' :
+                        spamCheckResult.openai.riskLevel === 'mittel' ? 'secondary' : 'destructive'
+                      }>
+                        Risiko: {spamCheckResult.openai.riskLevel}
+                      </Badge>
                     </h4>
-                    <div className="text-sm p-3 bg-blue-50 dark:bg-blue-950 rounded border border-blue-200 dark:border-blue-800">
-                      {spamCheckResult.openai.analysis}
-                    </div>
+                    
+                    {spamCheckResult.openai.issues.length > 0 ? (
+                      <div className="space-y-2">
+                        {spamCheckResult.openai.issues.map((issue, i) => (
+                          <div key={i} className={cn(
+                            "text-sm p-3 rounded border",
+                            issue.severity === 'high' ? "bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800" :
+                            issue.severity === 'medium' ? "bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800" :
+                            "bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800"
+                          )}>
+                            <p className="font-medium">{issue.problem}</p>
+                            <p className="text-muted-foreground mt-1">→ {issue.suggestion}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground p-2 bg-green-50 rounded border border-green-200">
+                        Keine Probleme erkannt
+                      </p>
+                    )}
+                    
+                    <p className="text-sm text-muted-foreground italic">
+                      💡 {spamCheckResult.openai.summary}
+                    </p>
                   </div>
                 )}
 

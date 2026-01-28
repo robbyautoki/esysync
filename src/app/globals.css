@@ -130,6 +130,25 @@ html {
   font-size: 1.1em;
 }
 
+.tiptap blockquote {
+  border-left: 3px solid hsl(var(--border));
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+
+.tiptap mark {
+  border-radius: 0.25em;
+  padding: 0 0.15em;
+}
+
+.tiptap hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 1.5rem 0;
+}
+
 /* TipTap Image Resize */
 .tiptap img {
   max-width: 100%;

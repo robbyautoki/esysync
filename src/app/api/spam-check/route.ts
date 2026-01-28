@@ -9,6 +9,12 @@ interface PostmarkResponse {
   rules?: Array<{ score: string; description: string }>
 }
 
+interface OpenAIIssue {
+  problem: string
+  suggestion: string
+  severity: 'high' | 'medium' | 'low'
+}
+
 interface SpamCheckResponse {
   local: SpamCheckResult
   postmark?: {
@@ -16,7 +22,9 @@ interface SpamCheckResponse {
     rules: Array<{ score: number; description: string }>
   }
   openai?: {
-    analysis: string
+    riskLevel: 'niedrig' | 'mittel' | 'hoch'
+    issues: OpenAIIssue[]
+    summary: string
   }
   overall: {
     score: number
@@ -140,17 +148,34 @@ async function analyzeWithOpenAI(
   body: string,
   apiKey: string
 ): Promise<SpamCheckResponse['openai']> {
-  const prompt = `Du bist ein E-Mail-Marketing-Experte. Analysiere diese E-Mail auf Spam-Risiko und Verbesserungspotenzial.
+  const prompt = `Du bist ein E-Mail-Marketing-Experte. Analysiere diese deutsche Marketing-E-Mail auf Spam-Risiko.
 
 Betreff: ${subject}
 
 Inhalt:
-${body.slice(0, 1000)}
+${body.slice(0, 1500)}
 
-Antworte auf Deutsch in max. 3 kurzen Sätzen:
-1. Bewerte das Spam-Risiko (niedrig/mittel/hoch)
-2. Nenne das größte Problem (falls vorhanden)
-3. Gib einen konkreten Verbesserungsvorschlag`
+Prüfe auf:
+- Spam-Wörter (kostenlos, gratis, jetzt, dringend, garantiert, etc.)
+- Übermäßige Großbuchstaben oder Ausrufezeichen
+- Aggressive Verkaufssprache
+- Fehlende Personalisierung
+- Zu viele Links
+
+Antworte NUR mit diesem JSON (keine Erklärung davor/danach):
+{
+  "riskLevel": "niedrig" | "mittel" | "hoch",
+  "issues": [
+    {
+      "problem": "Kurze Beschreibung des Problems",
+      "suggestion": "Konkrete Verbesserung oder Alternative",
+      "severity": "high" | "medium" | "low"
+    }
+  ],
+  "summary": "1 Satz Zusammenfassung auf Deutsch"
+}
+
+Wenn keine Probleme: leeres issues Array. Max 4 issues.`
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -163,8 +188,9 @@ Antworte auf Deutsch in max. 3 kurzen Sätzen:
       messages: [
         { role: 'user', content: prompt }
       ],
-      max_tokens: 200,
-      temperature: 0.3
+      max_tokens: 500,
+      temperature: 0.2,
+      response_format: { type: 'json_object' }
     })
   })
   
@@ -174,7 +200,20 @@ Antworte auf Deutsch in max. 3 kurzen Sätzen:
   }
   
   const data = await response.json()
-  const analysis = data.choices?.[0]?.message?.content || 'Keine Analyse verfügbar'
+  const content = data.choices?.[0]?.message?.content || '{}'
   
-  return { analysis }
+  try {
+    const parsed = JSON.parse(content)
+    return {
+      riskLevel: parsed.riskLevel || 'mittel',
+      issues: parsed.issues || [],
+      summary: parsed.summary || 'Keine Analyse verfügbar'
+    }
+  } catch {
+    return {
+      riskLevel: 'mittel',
+      issues: [],
+      summary: 'Analyse konnte nicht verarbeitet werden'
+    }
+  }
 }

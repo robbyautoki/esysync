@@ -31,11 +31,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Mail, Clock, GripVertical, Edit, Trash2, AlertTriangle, Tag, FolderInput, GitBranch, Plus, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useState } from 'react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { EmailStepEditor } from './email-step-editor'
 
 export interface BranchStep {
   id: string
   type: 'EMAIL' | 'DELAY' | 'TAG'
   subject?: string | null
+  content?: any
   delayValue?: number | null
   delayUnit?: string | null
   tagAction?: string | null
@@ -505,11 +509,18 @@ interface ConditionBranchesProps {
 }
 
 export function ConditionBranches({ step, onUpdate }: ConditionBranchesProps) {
+  const [editingBranchEmail, setEditingBranchEmail] = useState<{
+    stepId: string
+    isTrue: boolean
+    branchStep: BranchStep
+  } | null>(null)
+
   const addTrueStep = (type: 'EMAIL' | 'DELAY' | 'TAG') => {
     const newStep: BranchStep = {
       id: `true-${Date.now()}`,
       type,
       subject: type === 'EMAIL' ? '' : null,
+      content: type === 'EMAIL' ? null : null,
       delayValue: type === 'DELAY' ? 1 : null,
       delayUnit: type === 'DELAY' ? 'days' : null,
       tagAction: type === 'TAG' ? 'add' : null,
@@ -532,6 +543,7 @@ export function ConditionBranches({ step, onUpdate }: ConditionBranchesProps) {
       id: `false-${Date.now()}`,
       type,
       subject: type === 'EMAIL' ? '' : null,
+      content: type === 'EMAIL' ? null : null,
       delayValue: type === 'DELAY' ? 1 : null,
       delayUnit: type === 'DELAY' ? 'days' : null,
       tagAction: type === 'TAG' ? 'add' : null,
@@ -563,13 +575,24 @@ export function ConditionBranches({ step, onUpdate }: ConditionBranchesProps) {
       </div>
 
       {bs.type === 'EMAIL' && (
-        <Input
-          type="text"
-          placeholder="Betreff"
-          value={bs.subject || ''}
-          onChange={(e) => isTrue ? updateTrueStep(bs.id, { subject: e.target.value }) : updateFalseStep(bs.id, { subject: e.target.value })}
-          className="flex-1 h-7 text-sm min-w-0"
-        />
+        <>
+          <span className="flex-1 text-sm truncate text-muted-foreground">
+            {bs.subject || 'Kein Betreff'}
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 flex-shrink-0"
+                onClick={() => setEditingBranchEmail({ stepId: bs.id, isTrue, branchStep: bs })}
+              >
+                <Edit className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>E-Mail bearbeiten</TooltipContent>
+          </Tooltip>
+        </>
       )}
 
       {bs.type === 'DELAY' && (
@@ -721,6 +744,44 @@ export function ConditionBranches({ step, onUpdate }: ConditionBranchesProps) {
           </div>
         </div>
       </div>
+
+      {/* E-Mail Editor Sheet für Branch Steps */}
+      <Sheet open={!!editingBranchEmail} onOpenChange={(open) => !open && setEditingBranchEmail(null)}>
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Branch E-Mail bearbeiten</SheetTitle>
+          </SheetHeader>
+          {editingBranchEmail && (
+            <div className="mt-4">
+              <EmailStepEditor
+                step={{
+                  id: editingBranchEmail.stepId,
+                  type: 'EMAIL',
+                  order: 0,
+                  subject: editingBranchEmail.branchStep.subject || '',
+                  content: editingBranchEmail.branchStep.content || null
+                }}
+                localMode={true}
+                onSave={(updatedStep) => {
+                  if (editingBranchEmail.isTrue) {
+                    updateTrueStep(editingBranchEmail.stepId, { 
+                      subject: updatedStep.subject, 
+                      content: updatedStep.content 
+                    })
+                  } else {
+                    updateFalseStep(editingBranchEmail.stepId, { 
+                      subject: updatedStep.subject, 
+                      content: updatedStep.content 
+                    })
+                  }
+                  setEditingBranchEmail(null)
+                }}
+                onCancel={() => setEditingBranchEmail(null)}
+              />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

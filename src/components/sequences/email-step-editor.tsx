@@ -58,9 +58,10 @@ interface Step {
 
 interface EmailStepEditorProps {
   step: Step
-  sequenceId: string
+  sequenceId?: string
   onSave: (step: Step) => void
   onCancel: () => void
+  localMode?: boolean
 }
 
 interface OpenAIIssue {
@@ -92,7 +93,7 @@ const variables = [
   // unsubscribe_link wird automatisch im Footer eingefügt - nicht manuell nötig
 ]
 
-export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailStepEditorProps) {
+export function EmailStepEditor({ step, sequenceId, onSave, onCancel, localMode = false }: EmailStepEditorProps) {
   const [subject, setSubject] = useState(step.subject || '')
   const [content, setContent] = useState(step.content)
   const [saving, setSaving] = useState(false)
@@ -135,6 +136,13 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
   const handleSave = async () => {
     if (!subject.trim()) {
       toast.error('Bitte einen Betreff eingeben')
+      return
+    }
+
+    // Im localMode nur lokal speichern, kein API call
+    if (localMode) {
+      onSave({ ...step, subject, content })
+      toast.success('E-Mail gespeichert')
       return
     }
 

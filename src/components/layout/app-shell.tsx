@@ -13,9 +13,10 @@ import {
   X,
   FileText,
   Database,
-  UserMinus
+  UserMinus,
+  Play
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { UserButton } from '@clerk/nextjs'
@@ -34,6 +35,14 @@ const settingsItem = { name: 'Einstellungen', href: '/settings', icon: Settings,
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [stats, setStats] = useState<{ activeSequences: number; totalLeads: number } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(res => res.json())
+      .then(setStats)
+      .catch(() => {})
+  }, [])
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -101,6 +110,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Bottom section with ESYSYNC DB and settings */}
           <div className="absolute bottom-4 left-4 right-4 space-y-3">
             <div className="border-t pt-3 space-y-1">
+              {/* Stats */}
+              {stats && (
+                <div className="px-3 py-2 space-y-1 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Play className="w-3 h-3" />
+                    <span>{stats.activeSequences} Kampagnen aktiv</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users className="w-3 h-3" />
+                    <span>{stats.totalLeads.toLocaleString('de-DE')} Leads</span>
+                  </div>
+                </div>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Link

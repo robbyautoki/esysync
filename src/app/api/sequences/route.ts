@@ -10,19 +10,35 @@ const createSequenceSchema = z.object({
 })
 
 export async function GET() {
-  const sequences = await db.sequence.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      steps: {
-        orderBy: { order: 'asc' }
-      },
-      _count: {
-        select: { states: true }
+  const [sequences, folders] = await Promise.all([
+    db.sequence.findMany({
+      orderBy: [
+        { folder: { order: 'asc' } },
+        { createdAt: 'desc' }
+      ],
+      include: {
+        steps: {
+          orderBy: { order: 'asc' }
+        },
+        folder: {
+          select: { id: true, name: true, color: true }
+        },
+        _count: {
+          select: { states: true }
+        }
       }
-    }
-  })
+    }),
+    db.sequenceFolder.findMany({
+      orderBy: { order: 'asc' },
+      include: {
+        _count: {
+          select: { sequences: true }
+        }
+      }
+    })
+  ])
 
-  return NextResponse.json({ sequences })
+  return NextResponse.json({ sequences, folders })
 }
 
 export async function POST(request: NextRequest) {

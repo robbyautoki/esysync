@@ -287,26 +287,24 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" onClick={handleSpamCheck} disabled={spamCheckLoading}>
+              <Button variant="outline" size="icon" onClick={handleSpamCheck} disabled={spamCheckLoading}>
                 {spamCheckLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  <ShieldCheck className="h-4 w-4" />
                 )}
-                Spam-Check
               </Button>
             </TooltipTrigger>
-            <TooltipContent>E-Mail auf Spam-Risiko prüfen</TooltipContent>
+            <TooltipContent>Spam-Check</TooltipContent>
           </Tooltip>
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="outline" onClick={() => setTestEmailOpen(true)}>
-                <Send className="mr-2 h-4 w-4" />
-                Test senden
+              <Button variant="outline" size="icon" onClick={() => setTestEmailOpen(true)}>
+                <Send className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Test-E-Mail an dich senden</TooltipContent>
+            <TooltipContent>Test senden</TooltipContent>
           </Tooltip>
 
           <Button onClick={handleSave} disabled={saving}>

@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation'
 import { SequenceTable } from './sequence-table'
 import { SequenceAnalyticsSheet } from './sequence-analytics-sheet'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,14 +24,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Trash2, X, AlertTriangle, Loader2 } from 'lucide-react'
+import { Trash2, X, AlertTriangle, Loader2, FolderPlus } from 'lucide-react'
 import { toast } from 'sonner'
+
+interface SequenceFolder {
+  id: string
+  name: string
+  color: string | null
+  order: number
+}
 
 interface Sequence {
   id: string
   name: string
   isActive: boolean
   trigger: string
+  color: string | null
+  folderId: string | null
+  folder: { id: string; name: string; color: string | null } | null
   createdAt: Date
   steps: { type: string }[]
   _count: { states: number }
@@ -30,6 +49,7 @@ interface Sequence {
 
 interface SequencesPageClientProps {
   sequences: Sequence[]
+  folders: SequenceFolder[]
 }
 
 interface DeleteInfo {
@@ -38,7 +58,7 @@ interface DeleteInfo {
   totalLeadsAffected: number
 }
 
-export function SequencesPageClient({ sequences }: SequencesPageClientProps) {
+export function SequencesPageClient({ sequences, folders }: SequencesPageClientProps) {
   const router = useRouter()
   const [analyticsOpen, setAnalyticsOpen] = useState(false)
   const [selectedSequence, setSelectedSequence] = useState<Sequence | null>(null)
@@ -47,6 +67,9 @@ export function SequencesPageClient({ sequences }: SequencesPageClientProps) {
   const [deleteInfo, setDeleteInfo] = useState<DeleteInfo | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isLoadingInfo, setIsLoadingInfo] = useState(false)
+  const [folderDialogOpen, setFolderDialogOpen] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [creatingFolder, setCreatingFolder] = useState(false)
 
   const handleOpenAnalytics = (sequence: Sequence) => {
     setSelectedSequence(sequence)
@@ -98,14 +121,102 @@ export function SequencesPageClient({ sequences }: SequencesPageClientProps) {
     setSelectedIds([])
   }, [sequences])
 
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) return
+    setCreatingFolder(true)
+    try {
+      const res = await fetch('/api/sequences/folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newFolderName.trim() })
+      })
+      if (!res.ok) throw new Error('Fehler beim Erstellen')
+      toast.success('Ordner erstellt')
+      setFolderDialogOpen(false)
+      setNewFolderName('')
+      router.refresh()
+    } catch {
+      toast.error('Ordner konnte nicht erstellt werden')
+    } finally {
+      setCreatingFolder(false)
+    }
+  }
+
+  const handleUpdateSequenceColor = async (sequenceId: string, color: string | null) => {
+    try {
+      const res = await fetch(`/api/sequences/${sequenceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ color })
+      })
+      if (!res.ok) throw new Error('Fehler')
+      router.refresh()
+    } catch {
+      toast.error('Farbe konnte nicht geändert werden')
+    }
+  }
+
+  const handleUpdateSequenceFolder = async (sequenceId: string, folderId: string | null) => {
+    try {
+      const res = await fetch(`/api/sequences/${sequenceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId })
+      })
+      if (!res.ok) throw new Error('Fehler')
+      router.refresh()
+    } catch {
+      toast.error('Ordner konnte nicht geändert werden')
+    }
+  }
+
+  const handleDeleteFolder = async (folderId: string) => {
+    try {
+      const res = await fetch('/api/sequences/folders', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: folderId })
+      })
+      if (!res.ok) throw new Error('Fehler')
+      toast.success('Ordner gelöscht')
+      router.refresh()
+    } catch {
+      toast.error('Ordner konnte nicht gelöscht werden')
+    }
+  }
+
+  const handleRenameFolder = async (folderId: string, name: string) => {
+    try {
+      const res = await fetch('/api/sequences/folders', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: folderId, name })
+      })
+      if (!res.ok) throw new Error('Fehler')
+      router.refresh()
+    } catch {
+      toast.error('Ordner konnte nicht umbenannt werden')
+    }
+  }
+
   return (
     <>
-      {/* Bulk Actions Bar */}
-      {selectedIds.length > 0 && (
-        <div className="mb-4 flex items-center justify-between p-3 bg-muted rounded-lg border">
-          <div className="flex items-center gap-3">
+      {/* Actions Bar */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFolderDialogOpen(true)}
+          >
+            <FolderPlus className="h-4 w-4 mr-2" />
+            Neuer Ordner
+          </Button>
+        </div>
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-3 p-2 bg-muted rounded-lg border">
             <span className="text-sm font-medium">
-              {selectedIds.length} Sequenz{selectedIds.length > 1 ? 'en' : ''} ausgewählt
+              {selectedIds.length} ausgewählt
             </span>
             <Button
               variant="ghost"
@@ -113,25 +224,30 @@ export function SequencesPageClient({ sequences }: SequencesPageClientProps) {
               onClick={() => setSelectedIds([])}
             >
               <X className="h-4 w-4 mr-1" />
-              Auswahl aufheben
+              Aufheben
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleOpenDeleteDialog}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Löschen
             </Button>
           </div>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleOpenDeleteDialog}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Löschen
-          </Button>
-        </div>
-      )}
+        )}
+      </div>
 
       <SequenceTable
         sequences={sequences}
+        folders={folders}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         onOpenAnalytics={handleOpenAnalytics}
+        onUpdateColor={handleUpdateSequenceColor}
+        onUpdateFolder={handleUpdateSequenceFolder}
+        onDeleteFolder={handleDeleteFolder}
+        onRenameFolder={handleRenameFolder}
       />
 
       <SequenceAnalyticsSheet
@@ -196,6 +312,39 @@ export function SequencesPageClient({ sequences }: SequencesPageClientProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Folder Dialog */}
+      <Dialog open={folderDialogOpen} onOpenChange={setFolderDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Neuer Ordner</DialogTitle>
+            <DialogDescription>
+              Erstelle einen Ordner um deine Sequenzen zu organisieren.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="Ordnername"
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFolderDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleCreateFolder} disabled={!newFolderName.trim() || creatingFolder}>
+              {creatingFolder ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Erstellen...
+                </>
+              ) : (
+                'Erstellen'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

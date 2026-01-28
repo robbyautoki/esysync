@@ -9,18 +9,27 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Plus, Mail } from 'lucide-react'
 import { SequencesPageClient } from '@/components/sequences/sequences-page-client'
 
-async function getSequences() {
-  return db.sequence.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: {
-      steps: {
-        select: { type: true }
-      },
-      _count: {
-        select: { states: true }
+async function getSequencesAndFolders() {
+  const [sequences, folders] = await Promise.all([
+    db.sequence.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        steps: {
+          select: { type: true }
+        },
+        folder: {
+          select: { id: true, name: true, color: true }
+        },
+        _count: {
+          select: { states: true }
+        }
       }
-    }
-  })
+    }),
+    db.sequenceFolder.findMany({
+      orderBy: { order: 'asc' }
+    })
+  ])
+  return { sequences, folders }
 }
 
 function SequencesLoading() {
@@ -58,13 +67,13 @@ function EmptyState() {
 }
 
 async function SequencesList() {
-  const sequences = await getSequences()
+  const { sequences, folders } = await getSequencesAndFolders()
 
   if (sequences.length === 0) {
     return <EmptyState />
   }
 
-  return <SequencesPageClient sequences={sequences} />
+  return <SequencesPageClient sequences={sequences} folders={folders} />
 }
 
 export default function SequencesPage() {

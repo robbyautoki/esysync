@@ -37,12 +37,28 @@ model Sequence {
   trackClicks      Boolean     @default(true)
   sendTime         String?     // e.g. "09:00" or null for immediate
   scheduledStartAt DateTime?   // Optionales Startdatum für die Sequenz
+  color            String?     // Farbe für UI (z.B. "#8b5cf6")
+  folderId         String?
+  folder           SequenceFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
   steps  SequenceStep[]
   states SequenceState[]
   forms  SignupForm[]
+
+  @@index([folderId])
+}
+
+model SequenceFolder {
+  id        String     @id @default(cuid())
+  name      String
+  color     String?
+  order     Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  sequences Sequence[]
 }
 
 enum TriggerType {

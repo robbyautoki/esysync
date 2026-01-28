@@ -11,6 +11,8 @@ const updateSequenceSchema = z.object({
   sendTime: z.string().nullable().optional(),
   scheduledStartAt: z.string().datetime().nullable().optional()
     .transform(val => val ? new Date(val) : val === null ? null : undefined),
+  color: z.string().nullable().optional(),
+  folderId: z.string().nullable().optional(),
   steps: z.array(z.object({
     id: z.string(),
     type: z.enum(['EMAIL', 'DELAY']),
@@ -67,6 +69,8 @@ export async function PUT(
     if (data.trackClicks !== undefined) updateData.trackClicks = data.trackClicks
     if (data.sendTime !== undefined) updateData.sendTime = data.sendTime
     if (data.scheduledStartAt !== undefined) updateData.scheduledStartAt = data.scheduledStartAt
+    if (data.color !== undefined) updateData.color = data.color
+    if (data.folderId !== undefined) updateData.folderId = data.folderId
 
     const sequence = await db.sequence.update({
       where: { id: params.id },

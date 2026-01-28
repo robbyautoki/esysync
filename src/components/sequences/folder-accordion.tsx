@@ -172,9 +172,9 @@ function FolderItem({
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="flex items-center gap-2 py-2 px-3 rounded-lg hover:bg-muted/50 group">
+      <div className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/50 group">
         <CollapsibleTrigger asChild>
-          <button type="button" className="p-1 hover:bg-muted rounded">
+          <button type="button" className="hover:bg-muted rounded p-0.5">
             {isOpen ? (
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             ) : (
@@ -194,16 +194,16 @@ function FolderItem({
               if (e.key === 'Enter') handleRename()
               if (e.key === 'Escape') setIsEditing(false)
             }}
-            className="h-7 w-48"
+            className="h-6 w-40 text-sm"
             autoFocus
           />
         ) : (
-          <span className="font-medium flex-1">{folder.name}</span>
+          <span className="font-medium flex-1 text-sm">{folder.name}</span>
         )}
         
-        <Badge variant="secondary" className="text-xs">
+        <span className="text-xs text-muted-foreground tabular-nums">
           {sequences.length}
-        </Badge>
+        </span>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -233,21 +233,20 @@ function FolderItem({
       </div>
 
       <CollapsibleContent>
-        <div className="ml-6 border-l-2 border-muted pl-4 space-y-1 pb-2">
+        <div className="ml-5 border-l border-muted pl-3 space-y-0.5 py-1">
           {sequences.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">
-              Keine Sequenzen in diesem Ordner
+            <p className="text-xs text-muted-foreground py-1 pl-2">
+              Leer
             </p>
           ) : (
             sequences.map(sequence => {
               const isEsySync = sequence.name.toLowerCase().includes('esysync')
               const displayColor = isEsySync ? '#8b5cf6' : sequence.color
-              const emailSteps = (sequence.steps ?? []).filter(s => s.type === 'EMAIL').length
 
               return (
                 <div 
                   key={sequence.id}
-                  className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-muted/50 group"
+                  className="flex items-center gap-2 py-1 px-2 rounded hover:bg-muted/50 group"
                 >
                   <ColorPicker
                     currentColor={displayColor}
@@ -257,32 +256,32 @@ function FolderItem({
                   
                   <Link
                     href={`/sequences/${sequence.id}`}
-                    className="font-medium hover:underline flex-1 min-w-0 truncate"
+                    className="text-sm hover:underline flex-1 min-w-0 truncate"
                   >
                     {sequence.name}
                   </Link>
 
                   {isEsySync && (
-                    <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                    <Badge variant="outline" className="text-[10px] px-1 py-0 bg-purple-50 text-purple-700 border-purple-200">
                       EsySync
                     </Badge>
                   )}
                   
-                  <Badge variant={sequence.isActive ? 'success' : 'secondary'} className="text-xs">
+                  <Badge variant={sequence.isActive ? 'success' : 'secondary'} className="text-[10px] px-1.5 py-0">
                     {sequence.isActive ? 'Aktiv' : 'Inaktiv'}
                   </Badge>
                   
-                  <span className="text-sm text-muted-foreground w-16 text-right">
-                    {sequence._count.states} Leads
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {sequence._count.states}
                   </span>
 
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100"
                     onClick={() => onOpenAnalytics(sequence)}
                   >
-                    <BarChart3 className="h-4 w-4" />
+                    <BarChart3 className="h-3 w-3" />
                   </Button>
                   
                   <SequenceActions 

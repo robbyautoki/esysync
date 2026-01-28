@@ -7,7 +7,7 @@ import { FolderAccordion } from './folder-accordion'
 import { SequenceAnalyticsSheet } from './sequence-analytics-sheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Trash2, X, AlertTriangle, Loader2, FolderPlus, Folder } from 'lucide-react'
+import { Trash2, X, AlertTriangle, Loader2, FolderPlus } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface SequenceFolder {
@@ -248,25 +248,15 @@ export function SequencesPageClient({ sequences, folders }: SequencesPageClientP
       <div className="space-y-6">
         {/* Folders Section */}
         {folders.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Folder className="h-4 w-4" />
-                Ordner
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <FolderAccordion
-                folders={folders}
-                sequences={sequences}
-                onUpdateColor={handleUpdateSequenceColor}
-                onUpdateFolder={handleUpdateSequenceFolder}
-                onDeleteFolder={handleDeleteFolder}
-                onRenameFolder={handleRenameFolder}
-                onOpenAnalytics={handleOpenAnalytics}
-              />
-            </CardContent>
-          </Card>
+          <FolderAccordion
+            folders={folders}
+            sequences={sequences}
+            onUpdateColor={handleUpdateSequenceColor}
+            onUpdateFolder={handleUpdateSequenceFolder}
+            onDeleteFolder={handleDeleteFolder}
+            onRenameFolder={handleRenameFolder}
+            onOpenAnalytics={handleOpenAnalytics}
+          />
         )}
 
         {/* Unfoldered Sequences */}

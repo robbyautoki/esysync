@@ -15,12 +15,19 @@ const updateSequenceSchema = z.object({
   folderId: z.string().nullable().optional(),
   steps: z.array(z.object({
     id: z.string(),
-    type: z.enum(['EMAIL', 'DELAY']),
+    type: z.enum(['EMAIL', 'DELAY', 'TAG', 'SEGMENT', 'CONDITION']),
     order: z.number(),
     subject: z.string().nullable().optional(),
     content: z.any().optional(),
     delayValue: z.number().nullable().optional(),
-    delayUnit: z.string().nullable().optional()
+    delayUnit: z.string().nullable().optional(),
+    tagAction: z.string().nullable().optional(),
+    tagValue: z.string().nullable().optional(),
+    targetSegmentId: z.string().nullable().optional(),
+    conditionType: z.string().nullable().optional(),
+    conditionValue: z.string().nullable().optional(),
+    trueSteps: z.any().nullable().optional(),
+    falseSteps: z.any().nullable().optional()
   })).optional()
 })
 

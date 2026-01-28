@@ -105,6 +105,7 @@ targetSegmentId: String   // Segment-ID
 type: CONDITION
 conditionType: String     // "HAS_TAG", "NOT_HAS_TAG", "IN_SEGMENT", "NOT_IN_SEGMENT", "OPENED_EMAIL", "NOT_OPENED_EMAIL", "CLICKED_EMAIL"
 conditionValue: String    // Tag-Name, Segment-ID, oder Step-ID
+trueSteps: Json           // Array von Steps die bei TRUE ausgeführt werden
 falseSteps: Json          // Array von Steps die bei FALSE ausgeführt werden
 ```
 
@@ -119,10 +120,11 @@ falseSteps: Json          // Array von Steps die bei FALSE ausgeführt werden
 | `NOT_OPENED_EMAIL` | Step-ID | Lead hat E-Mail nicht geöffnet |
 | `CLICKED_EMAIL` | Step-ID | Lead hat Link geklickt |
 
-**falseSteps Format:**
+**trueSteps / falseSteps Format:**
 ```json
 [
-  { "id": "...", "type": "TAG", "tagAction": "add", "tagValue": "nicht-geöffnet" },
+  { "id": "...", "type": "EMAIL", "subject": "Danke!" },
+  { "id": "...", "type": "TAG", "tagAction": "add", "tagValue": "engaged" },
   { "id": "...", "type": "DELAY", "delayValue": 2, "delayUnit": "days" }
 ]
 ```
@@ -130,18 +132,36 @@ falseSteps: Json          // Array von Steps die bei FALSE ausgeführt werden
 **Validierung:**
 - conditionType muss gesetzt sein
 - conditionValue muss gesetzt sein
-- falseSteps werden einzeln validiert
+- trueSteps und falseSteps werden einzeln validiert
 
 **Cron-Job:**
 1. Bedingung auswerten via `evaluateCondition()`
-2. Falls FALSE und falseSteps vorhanden: falseSteps ausführen (TAG, DELAY)
-3. Weiter zum nächsten Hauptstep
+2. Falls TRUE und trueSteps vorhanden: trueSteps ausführen (TAG)
+3. Falls FALSE und falseSteps vorhanden: falseSteps ausführen (TAG)
+4. Weiter zum nächsten Hauptstep
 
-**UI:**
-- Gelbes Icon (GitBranch)
-- Dropdown für Bedingungstyp
-- Wert-Input je nach Typ (Tag-Name, Segment-Dropdown, E-Mail-Dropdown)
-- Collapsible "Falls NEIN" Section mit Mini-Steps
+**UI Layout:**
+```
+┌─────────────────────────────────────────────────────┐
+│ ⋮⋮  6  🔀  WENN [Bedingung wählen ▼]      [⚠️] [🗑️] │
+└─────────────────────────────────────────────────────┘
+                        │
+            ┌───────────┴───────────┐
+            │                       │
+┌───────────────────────┐   ┌───────────────────────┐
+│ ✓ (tooltip)           │   │ ✗ (tooltip)           │
+│ 📧 Danke E-Mail       │   │ 📧 Reminder           │
+│ [+ Step hinzufügen ▼] │   │ [+ Step hinzufügen ▼] │
+└───────────────────────┘   └───────────────────────┘
+```
+
+**UI Details:**
+- Branches sind SEPARATE Karten unter der Condition-Karte
+- Verbindungslinien (CSS pseudo-elements)
+- Icon mit Tooltip statt "Falls JA/NEIN" Text (✓ grün, ✗ rot)
+- Dropdown `[+ Step hinzufügen]` mit E-Mail/Delay/Tag Optionen
+- Weißer Hintergrund (`bg-card`) - nur Icon ist farbig
+- `ConditionBranches` Komponente in `step-card.tsx` exportiert
 
 ---
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Sheet,
   SheetContent,
@@ -164,6 +164,22 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
   const [savedChats, setSavedChats] = useState<SavedChat[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [historySearch, setHistorySearch] = useState('')
+
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: 'smooth'
+      })
+    }, 100)
+  }
+
+  // Auto-Scroll bei neuen Nachrichten oder Loading
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, loading])
 
   const CHATS_STORAGE_KEY = `ai-chats-${sequenceId}`
   const MAX_SAVED_CHATS = 10
@@ -538,6 +554,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
           messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
           companyProfile,
           sequenceId,
+          model: selectedModel,
           mode: chatMode
         })
       })
@@ -580,6 +597,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
             messages: [...messages, userMessage, { role: 'assistant', content: data.message }].map(m => ({ role: m.role, content: m.content })),
             companyProfile,
             sequenceId,
+            model: selectedModel,
             mode: 'execute'
           })
         })
@@ -758,7 +776,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
               </div>
             ) : (
               <>
-                <ScrollArea className="flex-1">
+                <ScrollArea className="flex-1" ref={scrollRef}>
                   <ConversationContent className="px-8 md:px-12 lg:px-16 max-w-3xl mx-auto">
                     {messages.map(msg => (
                       <div key={msg.id}>
@@ -1018,7 +1036,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                             Ausführen
                           </Button>
                         </div>
-                        <ModelSelector disabled={loading} />
+                        <ModelSelector value={selectedModel} onChange={setSelectedModel} disabled={loading} />
                       </>
                     }
                   />

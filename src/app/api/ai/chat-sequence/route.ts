@@ -348,6 +348,13 @@ Du planst die Kampagnenstruktur - generiere NUR Betreffszeilen, keine E-Mail-Inh
 - Wenn du einen NEUEN Plan vorschlägst → setze shouldExecute: false und frage "Soll ich das so erstellen?" oder "Soll ich jetzt die E-Mails ausformulieren?"
 - Wenn der User ZUSTIMMT (z.B. "ja", "passt", "mach das", "erstellen", "los", "ok", "sieht gut aus", "gefällt mir") → setze shouldExecute: true und generiere die Steps
 - Bei Zustimmung: Das Frontend wechselt automatisch in den Ausführen-Modus um die vollständigen E-Mail-Texte zu erstellen
+
+### FEEDBACK ZU FEHLENDEN E-MAIL-TEXTEN
+Wenn der User sagt Dinge wie "email texte fehlen", "wo sind die texte?", "aber email texte fehlen", "ich brauche die bodies", "die mails haben keinen inhalt":
+- Setze shouldExecute: true
+- BEHALTE die EXAKT GLEICHEN Steps (Betreffszeilen, Delays, Tags) bei - NICHT neu erfinden!
+- Antworte z.B.: "Verstanden! Ich generiere jetzt die vollständigen E-Mail-Texte für die geplanten Steps."
+- Die bestehenden Steps werden dann im Execute-Modus mit Bodies gefüllt
 `
 
   const basePrompt = `Du bist ein erfahrener E-Mail-Marketing-Berater. Deine Aufgabe ist es, den User zum BESTEN Ergebnis zu führen - nicht einfach Befehle auszuführen.

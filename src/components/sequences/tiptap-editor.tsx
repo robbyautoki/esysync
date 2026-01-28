@@ -72,7 +72,7 @@ const CtaButton = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes({ 'data-type': 'cta-button' }, HTMLAttributes), 0]
+    return ['div', mergeAttributes({ 'data-type': 'cta-button' }, HTMLAttributes)]
   },
 
   addNodeView() {

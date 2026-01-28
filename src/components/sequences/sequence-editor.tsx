@@ -71,7 +71,7 @@ import { validateSequence, formatValidationErrors } from '@/lib/sequence-validat
 import { SequenceAnalyticsSheet } from './sequence-analytics-sheet'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { StepCard, ConditionBranches } from './step-card'
+import { StepCard, ConditionBranches, BranchStep } from './step-card'
 import { EmailStepEditor } from './email-step-editor'
 import { SequenceLeads } from './sequence-leads'
 import { SequenceTracking } from './sequence-tracking'
@@ -125,6 +125,11 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(true)
   const [editingStep, setEditingStep] = useState<Step | null>(null)
+  const [editingBranchEmail, setEditingBranchEmail] = useState<{
+    conditionStepId: string
+    branchStep: BranchStep
+    isTrue: boolean
+  } | null>(null)
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(
     initialSequence.scheduledStartAt ? new Date(initialSequence.scheduledStartAt) : undefined
   )
@@ -349,6 +354,43 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
     )
   }
 
+  if (editingBranchEmail) {
+    return (
+      <EmailStepEditor
+        step={{
+          id: editingBranchEmail.branchStep.id,
+          type: 'EMAIL',
+          order: 0,
+          subject: editingBranchEmail.branchStep.subject || '',
+          content: editingBranchEmail.branchStep.content || null
+        }}
+        localMode={true}
+        onSave={(updated) => {
+          const conditionStep = steps.find(s => s.id === editingBranchEmail.conditionStepId)
+          if (conditionStep) {
+            if (editingBranchEmail.isTrue) {
+              const updatedTrueSteps = (conditionStep.trueSteps || []).map(bs =>
+                bs.id === editingBranchEmail.branchStep.id
+                  ? { ...bs, subject: updated.subject, content: updated.content }
+                  : bs
+              )
+              updateStep({ ...conditionStep, trueSteps: updatedTrueSteps })
+            } else {
+              const updatedFalseSteps = (conditionStep.falseSteps || []).map(bs =>
+                bs.id === editingBranchEmail.branchStep.id
+                  ? { ...bs, subject: updated.subject, content: updated.content }
+                  : bs
+              )
+              updateStep({ ...conditionStep, falseSteps: updatedFalseSteps })
+            }
+          }
+          setEditingBranchEmail(null)
+        }}
+        onCancel={() => setEditingBranchEmail(null)}
+      />
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
@@ -536,6 +578,9 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
                           <ConditionBranches
                             step={step}
                             onUpdate={(updates) => updateStep({ ...step, ...updates })}
+                            onEditBranchEmail={(branchStep, isTrue) => {
+                              setEditingBranchEmail({ conditionStepId: step.id, branchStep, isTrue })
+                            }}
                           />
                         </div>
                       )}

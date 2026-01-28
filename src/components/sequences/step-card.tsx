@@ -31,9 +31,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Mail, Clock, GripVertical, Edit, Trash2, AlertTriangle, Tag, FolderInput, GitBranch, Plus, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { EmailStepEditor } from './email-step-editor'
 
 export interface BranchStep {
   id: string
@@ -506,14 +503,10 @@ interface ConditionBranchesProps {
     falseSteps?: BranchStep[] | null
   }
   onUpdate: (updates: { trueSteps?: BranchStep[] | null; falseSteps?: BranchStep[] | null }) => void
+  onEditBranchEmail: (branchStep: BranchStep, isTrue: boolean) => void
 }
 
-export function ConditionBranches({ step, onUpdate }: ConditionBranchesProps) {
-  const [editingBranchEmail, setEditingBranchEmail] = useState<{
-    stepId: string
-    isTrue: boolean
-    branchStep: BranchStep
-  } | null>(null)
+export function ConditionBranches({ step, onUpdate, onEditBranchEmail }: ConditionBranchesProps) {
 
   const addTrueStep = (type: 'EMAIL' | 'DELAY' | 'TAG') => {
     const newStep: BranchStep = {
@@ -585,7 +578,7 @@ export function ConditionBranches({ step, onUpdate }: ConditionBranchesProps) {
                 variant="ghost" 
                 size="icon" 
                 className="h-6 w-6 flex-shrink-0"
-                onClick={() => setEditingBranchEmail({ stepId: bs.id, isTrue, branchStep: bs })}
+                onClick={() => onEditBranchEmail(bs, isTrue)}
               >
                 <Edit className="h-3 w-3" />
               </Button>
@@ -744,44 +737,6 @@ export function ConditionBranches({ step, onUpdate }: ConditionBranchesProps) {
           </div>
         </div>
       </div>
-
-      {/* E-Mail Editor Sheet für Branch Steps */}
-      <Sheet open={!!editingBranchEmail} onOpenChange={(open) => !open && setEditingBranchEmail(null)}>
-        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Branch E-Mail bearbeiten</SheetTitle>
-          </SheetHeader>
-          {editingBranchEmail && (
-            <div className="mt-4">
-              <EmailStepEditor
-                step={{
-                  id: editingBranchEmail.stepId,
-                  type: 'EMAIL',
-                  order: 0,
-                  subject: editingBranchEmail.branchStep.subject || '',
-                  content: editingBranchEmail.branchStep.content || null
-                }}
-                localMode={true}
-                onSave={(updatedStep) => {
-                  if (editingBranchEmail.isTrue) {
-                    updateTrueStep(editingBranchEmail.stepId, { 
-                      subject: updatedStep.subject, 
-                      content: updatedStep.content 
-                    })
-                  } else {
-                    updateFalseStep(editingBranchEmail.stepId, { 
-                      subject: updatedStep.subject, 
-                      content: updatedStep.content 
-                    })
-                  }
-                  setEditingBranchEmail(null)
-                }}
-                onCancel={() => setEditingBranchEmail(null)}
-              />
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   )
 }

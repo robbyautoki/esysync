@@ -23,10 +23,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Mail, Clock, GripVertical, Edit, Trash2, AlertTriangle, Tag, FolderInput, GitBranch, Plus, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-interface FalseStep {
+export interface BranchStep {
   id: string
   type: 'EMAIL' | 'DELAY' | 'TAG'
   subject?: string | null
@@ -35,6 +41,9 @@ interface FalseStep {
   tagAction?: string | null
   tagValue?: string | null
 }
+
+// Alias für Rückwärtskompatibilität
+type FalseStep = BranchStep
 
 interface Step {
   id: string
@@ -453,228 +462,243 @@ export function StepCard({ step, index, isLast, prevStepType, nextStepType, onEd
       </div>
       </div>
 
-      {/* Branches Grid für CONDITION */}
-      {step.type === 'CONDITION' && (
-        <div className="grid grid-cols-2 gap-4 mt-3 ml-14">
-          {/* TRUE Branch Box */}
-          <div className="border rounded-lg p-3 bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
-            <div className="flex items-center gap-2 mb-3 text-green-600 font-medium text-sm">
-              <Check className="h-4 w-4" />
-              Falls JA
-            </div>
-            <div className="space-y-2">
-              {(step.trueSteps || []).map((ts) => (
-                <div key={ts.id} className="flex items-center gap-2 p-2 bg-white dark:bg-green-950/30 rounded-md border border-green-100 dark:border-green-900">
-                  <div className={cn(
-                    "w-6 h-6 rounded flex items-center justify-center text-xs flex-shrink-0",
-                    ts.type === 'EMAIL' && "bg-blue-100 text-blue-600",
-                    ts.type === 'DELAY' && "bg-orange-100 text-orange-600",
-                    ts.type === 'TAG' && "bg-purple-100 text-purple-600"
-                  )}>
-                    {ts.type === 'EMAIL' && <Mail className="h-3 w-3" />}
-                    {ts.type === 'DELAY' && <Clock className="h-3 w-3" />}
-                    {ts.type === 'TAG' && <Tag className="h-3 w-3" />}
-                  </div>
-
-                  {ts.type === 'EMAIL' && (
-                    <Input
-                      type="text"
-                      placeholder="Betreff"
-                      value={ts.subject || ''}
-                      onChange={(e) => updateTrueStep(ts.id, { subject: e.target.value })}
-                      className="flex-1 h-7 text-sm min-w-0"
-                    />
-                  )}
-
-                  {ts.type === 'DELAY' && (
-                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                      <Input
-                        type="number"
-                        min={1}
-                        value={ts.delayValue || 1}
-                        onChange={(e) => updateTrueStep(ts.id, { delayValue: parseInt(e.target.value) || 1 })}
-                        className="w-12 h-7 text-sm"
-                      />
-                      <Select 
-                        value={ts.delayUnit || 'days'} 
-                        onValueChange={(value) => updateTrueStep(ts.id, { delayUnit: value })}
-                      >
-                        <SelectTrigger className="w-20 h-7 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {delayUnits.map(unit => (
-                            <SelectItem key={unit.value} value={unit.value}>
-                              {unit.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {ts.type === 'TAG' && (
-                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                      <Select 
-                        value={ts.tagAction || 'add'} 
-                        onValueChange={(value) => updateTrueStep(ts.id, { tagAction: value })}
-                      >
-                        <SelectTrigger className="w-16 h-7 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="add">+</SelectItem>
-                          <SelectItem value="remove">-</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="text"
-                        placeholder="Tag"
-                        value={ts.tagValue || ''}
-                        onChange={(e) => updateTrueStep(ts.id, { tagValue: e.target.value })}
-                        className="flex-1 h-7 text-sm min-w-0"
-                      />
-                    </div>
-                  )}
-
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6 flex-shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => deleteTrueStep(ts.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-
-              <div className="flex flex-wrap items-center gap-1 pt-1">
-                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addTrueStep('EMAIL')}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  E-Mail
-                </Button>
-                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addTrueStep('DELAY')}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Delay
-                </Button>
-                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addTrueStep('TAG')}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Tag
-                </Button>
-              </div>
-            </div>
           </div>
+  )
+}
 
-          {/* FALSE Branch Box */}
-          <div className="border rounded-lg p-3 bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-800">
-            <div className="flex items-center gap-2 mb-3 text-red-600 font-medium text-sm">
-              <X className="h-4 w-4" />
-              Falls NEIN
-            </div>
-            <div className="space-y-2">
-              {(step.falseSteps || []).map((fs) => (
-                <div key={fs.id} className="flex items-center gap-2 p-2 bg-white dark:bg-red-950/30 rounded-md border border-red-100 dark:border-red-900">
-                  <div className={cn(
-                    "w-6 h-6 rounded flex items-center justify-center text-xs flex-shrink-0",
-                    fs.type === 'EMAIL' && "bg-blue-100 text-blue-600",
-                    fs.type === 'DELAY' && "bg-orange-100 text-orange-600",
-                    fs.type === 'TAG' && "bg-purple-100 text-purple-600"
-                  )}>
-                    {fs.type === 'EMAIL' && <Mail className="h-3 w-3" />}
-                    {fs.type === 'DELAY' && <Clock className="h-3 w-3" />}
-                    {fs.type === 'TAG' && <Tag className="h-3 w-3" />}
-                  </div>
+// Separate Komponente für Condition Branches
+const delayUnitsForBranches = [
+  { value: 'minutes', label: 'Min' },
+  { value: 'hours', label: 'Std' },
+  { value: 'days', label: 'Tage' },
+]
 
-                  {fs.type === 'EMAIL' && (
-                    <Input
-                      type="text"
-                      placeholder="Betreff"
-                      value={fs.subject || ''}
-                      onChange={(e) => updateFalseStep(fs.id, { subject: e.target.value })}
-                      className="flex-1 h-7 text-sm min-w-0"
-                    />
-                  )}
+interface ConditionBranchesProps {
+  step: {
+    id: string
+    trueSteps?: BranchStep[] | null
+    falseSteps?: BranchStep[] | null
+  }
+  onUpdate: (updates: { trueSteps?: BranchStep[] | null; falseSteps?: BranchStep[] | null }) => void
+}
 
-                  {fs.type === 'DELAY' && (
-                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                      <Input
-                        type="number"
-                        min={1}
-                        value={fs.delayValue || 1}
-                        onChange={(e) => updateFalseStep(fs.id, { delayValue: parseInt(e.target.value) || 1 })}
-                        className="w-12 h-7 text-sm"
-                      />
-                      <Select 
-                        value={fs.delayUnit || 'days'} 
-                        onValueChange={(value) => updateFalseStep(fs.id, { delayUnit: value })}
-                      >
-                        <SelectTrigger className="w-20 h-7 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {delayUnits.map(unit => (
-                            <SelectItem key={unit.value} value={unit.value}>
-                              {unit.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
+export function ConditionBranches({ step, onUpdate }: ConditionBranchesProps) {
+  const addTrueStep = (type: 'EMAIL' | 'DELAY' | 'TAG') => {
+    const newStep: BranchStep = {
+      id: `true-${Date.now()}`,
+      type,
+      subject: type === 'EMAIL' ? '' : null,
+      delayValue: type === 'DELAY' ? 1 : null,
+      delayUnit: type === 'DELAY' ? 'days' : null,
+      tagAction: type === 'TAG' ? 'add' : null,
+      tagValue: type === 'TAG' ? '' : null,
+    }
+    onUpdate({ trueSteps: [...(step.trueSteps || []), newStep] })
+  }
 
-                  {fs.type === 'TAG' && (
-                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                      <Select 
-                        value={fs.tagAction || 'add'} 
-                        onValueChange={(value) => updateFalseStep(fs.id, { tagAction: value })}
-                      >
-                        <SelectTrigger className="w-16 h-7 text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="add">+</SelectItem>
-                          <SelectItem value="remove">-</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="text"
-                        placeholder="Tag"
-                        value={fs.tagValue || ''}
-                        onChange={(e) => updateFalseStep(fs.id, { tagValue: e.target.value })}
-                        className="flex-1 h-7 text-sm min-w-0"
-                      />
-                    </div>
-                  )}
+  const updateTrueStep = (stepId: string, updates: Partial<BranchStep>) => {
+    const updated = (step.trueSteps || []).map(s => s.id === stepId ? { ...s, ...updates } : s)
+    onUpdate({ trueSteps: updated })
+  }
 
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6 flex-shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => deleteFalseStep(fs.id)}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
+  const deleteTrueStep = (stepId: string) => {
+    onUpdate({ trueSteps: (step.trueSteps || []).filter(s => s.id !== stepId) })
+  }
+
+  const addFalseStep = (type: 'EMAIL' | 'DELAY' | 'TAG') => {
+    const newStep: BranchStep = {
+      id: `false-${Date.now()}`,
+      type,
+      subject: type === 'EMAIL' ? '' : null,
+      delayValue: type === 'DELAY' ? 1 : null,
+      delayUnit: type === 'DELAY' ? 'days' : null,
+      tagAction: type === 'TAG' ? 'add' : null,
+      tagValue: type === 'TAG' ? '' : null,
+    }
+    onUpdate({ falseSteps: [...(step.falseSteps || []), newStep] })
+  }
+
+  const updateFalseStep = (stepId: string, updates: Partial<BranchStep>) => {
+    const updated = (step.falseSteps || []).map(s => s.id === stepId ? { ...s, ...updates } : s)
+    onUpdate({ falseSteps: updated })
+  }
+
+  const deleteFalseStep = (stepId: string) => {
+    onUpdate({ falseSteps: (step.falseSteps || []).filter(s => s.id !== stepId) })
+  }
+
+  const renderBranchStep = (bs: BranchStep, isTrue: boolean) => (
+    <div key={bs.id} className="flex items-center gap-2 p-2 bg-card rounded-md border">
+      <div className={cn(
+        "w-6 h-6 rounded flex items-center justify-center text-xs flex-shrink-0",
+        bs.type === 'EMAIL' && "bg-blue-100 text-blue-600",
+        bs.type === 'DELAY' && "bg-orange-100 text-orange-600",
+        bs.type === 'TAG' && "bg-purple-100 text-purple-600"
+      )}>
+        {bs.type === 'EMAIL' && <Mail className="h-3 w-3" />}
+        {bs.type === 'DELAY' && <Clock className="h-3 w-3" />}
+        {bs.type === 'TAG' && <Tag className="h-3 w-3" />}
+      </div>
+
+      {bs.type === 'EMAIL' && (
+        <Input
+          type="text"
+          placeholder="Betreff"
+          value={bs.subject || ''}
+          onChange={(e) => isTrue ? updateTrueStep(bs.id, { subject: e.target.value }) : updateFalseStep(bs.id, { subject: e.target.value })}
+          className="flex-1 h-7 text-sm min-w-0"
+        />
+      )}
+
+      {bs.type === 'DELAY' && (
+        <div className="flex items-center gap-1 flex-1 min-w-0">
+          <Input
+            type="number"
+            min={1}
+            value={bs.delayValue || 1}
+            onChange={(e) => isTrue ? updateTrueStep(bs.id, { delayValue: parseInt(e.target.value) || 1 }) : updateFalseStep(bs.id, { delayValue: parseInt(e.target.value) || 1 })}
+            className="w-12 h-7 text-sm"
+          />
+          <Select 
+            value={bs.delayUnit || 'days'} 
+            onValueChange={(value) => isTrue ? updateTrueStep(bs.id, { delayUnit: value }) : updateFalseStep(bs.id, { delayUnit: value })}
+          >
+            <SelectTrigger className="w-20 h-7 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {delayUnitsForBranches.map(unit => (
+                <SelectItem key={unit.value} value={unit.value}>
+                  {unit.label}
+                </SelectItem>
               ))}
-
-              <div className="flex flex-wrap items-center gap-1 pt-1">
-                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addFalseStep('EMAIL')}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  E-Mail
-                </Button>
-                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addFalseStep('DELAY')}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Delay
-                </Button>
-                <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={() => addFalseStep('TAG')}>
-                  <Plus className="h-3 w-3 mr-1" />
-                  Tag
-                </Button>
-              </div>
-            </div>
-          </div>
+            </SelectContent>
+          </Select>
         </div>
       )}
+
+      {bs.type === 'TAG' && (
+        <div className="flex items-center gap-1 flex-1 min-w-0">
+          <Select 
+            value={bs.tagAction || 'add'} 
+            onValueChange={(value) => isTrue ? updateTrueStep(bs.id, { tagAction: value }) : updateFalseStep(bs.id, { tagAction: value })}
+          >
+            <SelectTrigger className="w-14 h-7 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="add">+</SelectItem>
+              <SelectItem value="remove">-</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            type="text"
+            placeholder="Tag"
+            value={bs.tagValue || ''}
+            onChange={(e) => isTrue ? updateTrueStep(bs.id, { tagValue: e.target.value }) : updateFalseStep(bs.id, { tagValue: e.target.value })}
+            className="flex-1 h-7 text-sm min-w-0"
+          />
+        </div>
+      )}
+
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="h-6 w-6 flex-shrink-0 text-muted-foreground hover:text-destructive"
+        onClick={() => isTrue ? deleteTrueStep(bs.id) : deleteFalseStep(bs.id)}
+      >
+        <Trash2 className="h-3 w-3" />
+      </Button>
+    </div>
+  )
+
+  return (
+    <div className="relative">
+      {/* Verbindungslinie */}
+      <div className="absolute left-1/2 -top-3 w-px h-3 bg-border" />
+      <div className="absolute left-1/4 top-0 right-1/4 h-px bg-border" />
+      <div className="absolute left-1/4 top-0 w-px h-3 bg-border" />
+      <div className="absolute right-1/4 top-0 w-px h-3 bg-border" />
+      
+      <div className="grid grid-cols-2 gap-4 pt-3">
+        {/* TRUE Branch */}
+        <div className="border rounded-lg p-3 border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/10">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mb-3">
+                <Check className="h-4 w-4 text-green-600" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>Wird ausgeführt wenn Bedingung erfüllt</TooltipContent>
+          </Tooltip>
+          
+          <div className="space-y-2">
+            {(step.trueSteps || []).map(bs => renderBranchStep(bs, true))}
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 text-xs w-full justify-start">
+                  <Plus className="h-3 w-3 mr-1" />
+                  Step hinzufügen
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => addTrueStep('EMAIL')}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  E-Mail
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => addTrueStep('DELAY')}>
+                  <Clock className="h-4 w-4 mr-2" />
+                  Delay
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => addTrueStep('TAG')}>
+                  <Tag className="h-4 w-4 mr-2" />
+                  Tag
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* FALSE Branch */}
+        <div className="border rounded-lg p-3 border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-950/10">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-6 h-6 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center mb-3">
+                <X className="h-4 w-4 text-red-600" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>Wird ausgeführt wenn Bedingung nicht erfüllt</TooltipContent>
+          </Tooltip>
+          
+          <div className="space-y-2">
+            {(step.falseSteps || []).map(bs => renderBranchStep(bs, false))}
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 text-xs w-full justify-start">
+                  <Plus className="h-3 w-3 mr-1" />
+                  Step hinzufügen
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => addFalseStep('EMAIL')}>
+                  <Mail className="h-4 w-4 mr-2" />
+                  E-Mail
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => addFalseStep('DELAY')}>
+                  <Clock className="h-4 w-4 mr-2" />
+                  Delay
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => addFalseStep('TAG')}>
+                  <Tag className="h-4 w-4 mr-2" />
+                  Tag
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

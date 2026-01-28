@@ -71,7 +71,7 @@ import { validateSequence, formatValidationErrors } from '@/lib/sequence-validat
 import { SequenceAnalyticsSheet } from './sequence-analytics-sheet'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { StepCard } from './step-card'
+import { StepCard, ConditionBranches } from './step-card'
 import { EmailStepEditor } from './email-step-editor'
 import { SequenceLeads } from './sequence-leads'
 import { SequenceTracking } from './sequence-tracking'
@@ -516,21 +516,30 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
               >
                 <div className="space-y-3">
                   {steps.map((step, index) => (
-                    <StepCard
-                      key={step.id}
-                      step={step}
-                      index={index}
-                      isLast={index === steps.length - 1}
-                      prevStepType={index > 0 ? steps[index - 1].type : null}
-                      nextStepType={index < steps.length - 1 ? steps[index + 1].type : null}
-                      onEdit={() => step.type === 'EMAIL' && setEditingStep(step)}
-                      onUpdate={updateStep}
-                      onDelete={() => deleteStep(step.id)}
-                      emailSteps={steps
-                        .filter((s, i) => s.type === 'EMAIL' && i < index)
-                        .map((s, i) => ({ id: s.id, subject: s.subject || null, index: steps.findIndex(st => st.id === s.id) }))
-                      }
-                    />
+                    <div key={step.id}>
+                      <StepCard
+                        step={step}
+                        index={index}
+                        isLast={index === steps.length - 1}
+                        prevStepType={index > 0 ? steps[index - 1].type : null}
+                        nextStepType={index < steps.length - 1 ? steps[index + 1].type : null}
+                        onEdit={() => step.type === 'EMAIL' && setEditingStep(step)}
+                        onUpdate={updateStep}
+                        onDelete={() => deleteStep(step.id)}
+                        emailSteps={steps
+                          .filter((s, i) => s.type === 'EMAIL' && i < index)
+                          .map((s, i) => ({ id: s.id, subject: s.subject || null, index: steps.findIndex(st => st.id === s.id) }))
+                        }
+                      />
+                      {step.type === 'CONDITION' && (
+                        <div className="mt-3 mb-3">
+                          <ConditionBranches
+                            step={step}
+                            onUpdate={(updates) => updateStep({ ...step, ...updates })}
+                          />
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               </SortableContext>

@@ -15,7 +15,7 @@ import {
   Mail, 
   Eye, 
   MousePointerClick, 
-  Send, 
+  SendHorizontal, 
   UserPlus,
   UserMinus,
   AlertCircle,
@@ -79,7 +79,7 @@ interface LeadHistory {
 }
 
 const eventIcons: Record<string, typeof Mail> = {
-  EMAIL_SENT: Send,
+  EMAIL_SENT: SendHorizontal,
   EMAIL_OPENED: Eye,
   EMAIL_CLICKED: MousePointerClick,
   EMAIL_BOUNCED: AlertCircle,

@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import { Mail, Clock, GripVertical, Edit, Trash2 } from 'lucide-react'
+import { Mail, Clock, GripVertical, Edit, Trash2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Step {
@@ -64,6 +64,22 @@ export function StepCard({ step, index, onEdit, onUpdate, onDelete }: StepCardPr
     { value: 'hours', label: 'Stunden' },
     { value: 'days', label: 'Tage' },
   ]
+
+  // Warnungen für E-Mail Steps
+  const hasContent = step.type === 'EMAIL' && 
+    step.content?.content && 
+    Array.isArray(step.content.content) && 
+    step.content.content.length > 0
+
+  const contentString = step.content ? JSON.stringify(step.content) : ''
+  const hasFirstName = contentString.includes('{{firstName}}') || contentString.includes('{{ firstName }}')
+
+  const warnings: string[] = []
+  if (step.type === 'EMAIL') {
+    if (!hasContent) warnings.push('Kein Inhalt vorhanden')
+    if (!hasFirstName) warnings.push('{{firstName}} fehlt')
+  }
+  const hasWarning = warnings.length > 0
 
   return (
     <div
@@ -141,8 +157,24 @@ export function StepCard({ step, index, onEdit, onUpdate, onDelete }: StepCardPr
         )}
       </div>
 
-      {/* Actions */}
+      {/* Warning + Actions */}
       <div className="flex items-center gap-1">
+        {hasWarning && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="p-2 cursor-help">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="font-medium mb-1">E-Mail unvollständig:</p>
+              {warnings.map((w, i) => (
+                <p key={i}>• {w}</p>
+              ))}
+            </TooltipContent>
+          </Tooltip>
+        )}
+
         {step.type === 'EMAIL' && (
           <Tooltip>
             <TooltipTrigger asChild>

@@ -73,6 +73,7 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { StepCard, ConditionBranches, BranchStep } from './step-card'
 import { EmailStepEditor } from './email-step-editor'
+import { AISequenceChat } from './ai-sequence-chat'
 import { SequenceLeads } from './sequence-leads'
 import { SequenceTracking } from './sequence-tracking'
 
@@ -140,9 +141,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
   )
   const [confirmActiveModal, setConfirmActiveModal] = useState(false)
   const [dateModalOpen, setDateModalOpen] = useState(false)
-  const [aiDialogOpen, setAiDialogOpen] = useState(false)
-  const [aiPrompt, setAiPrompt] = useState('')
-  const [aiGenerating, setAiGenerating] = useState(false)
+  const [aiChatOpen, setAiChatOpen] = useState(false)
   const [analyticsOpen, setAnalyticsOpen] = useState(false)
 
   const sensors = useSensors(
@@ -241,36 +240,39 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
     }
   }
 
-  const handleGenerateSteps = async () => {
-    if (!aiPrompt.trim()) {
-      toast.error('Bitte beschreibe deine Kampagne')
-      return
-    }
+  const handleApplyAISteps = async (aiSteps: Array<{
+    id: string
+    type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION'
+    subject?: string | null
+    delayValue?: number | null
+    delayUnit?: string | null
+    tagAction?: string | null
+    tagValue?: string | null
+    segmentName?: string | null
+    conditionType?: string | null
+    conditionValue?: string | null
+  }>) => {
+    // Konvertiere AI Steps zu vollständigen Steps
+    const newSteps: Step[] = aiSteps.map((aiStep, index) => ({
+      id: `temp-${Date.now()}-${index}`,
+      type: aiStep.type,
+      order: steps.length + index,
+      subject: aiStep.subject || null,
+      content: aiStep.type === 'EMAIL' ? { type: 'doc', content: [] } : null,
+      delayValue: aiStep.delayValue || null,
+      delayUnit: aiStep.delayUnit || null,
+      tagAction: aiStep.tagAction || null,
+      tagValue: aiStep.tagValue || null,
+      targetSegmentId: null,
+      segmentName: aiStep.segmentName || null,
+      conditionType: aiStep.conditionType || null,
+      conditionValue: aiStep.conditionValue || null,
+      trueSteps: aiStep.type === 'CONDITION' ? [] : null,
+      falseSteps: aiStep.type === 'CONDITION' ? [] : null
+    }))
 
-    setAiGenerating(true)
-    try {
-      const res = await fetch('/api/ai/generate-steps', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          description: aiPrompt, 
-          sequenceId: sequence.id 
-        })
-      })
-
-      const data = await res.json()
-      if (!data.success) throw new Error(data.error)
-
-      setSteps(data.steps)
-      markUnsaved()
-      setAiDialogOpen(false)
-      setAiPrompt('')
-      toast.success(`${data.steps.length} Steps generiert`)
-    } catch (error) {
-      toast.error('Fehler beim Generieren der Steps')
-    } finally {
-      setAiGenerating(false)
-    }
+    setSteps(prev => [...prev, ...newSteps])
+    markUnsaved()
   }
 
   const addStep = async (type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION') => {
@@ -495,7 +497,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    onClick={() => setAiDialogOpen(true)}
+                    onClick={() => setAiChatOpen(true)}
                   >
                     <Sparkles className="h-4 w-4 mr-2" />
                     KI generieren
@@ -540,7 +542,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
                   <Mail className="mr-2 h-4 w-4" />
                   Erste E-Mail
                 </Button>
-                <Button variant="outline" onClick={() => setAiDialogOpen(true)}>
+                <Button variant="outline" onClick={() => setAiChatOpen(true)}>
                   <Sparkles className="mr-2 h-4 w-4" />
                   Mit KI starten
                 </Button>
@@ -706,52 +708,13 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
         </DialogContent>
       </Dialog>
 
-      {/* KI Steps Dialog */}
-      <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              Steps mit KI generieren
-            </DialogTitle>
-            <DialogDescription>
-              Beschreibe deine Kampagne und die KI erstellt die Sequenz-Struktur für dich.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Textarea
-              placeholder={`Beispiel:\nMesse Onboarding Sequenz\n- 3 E-Mails über 2 Wochen\n- Tag 1: Willkommen + Recap\n- Tag 5: Produktvorstellung\n- Tag 14: Follow-up`}
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              className="min-h-[150px]"
-            />
-            {steps.length > 0 && (
-              <p className="text-sm text-orange-600 flex items-center gap-2">
-                <Info className="h-4 w-4" />
-                Bestehende {steps.length} Steps werden überschrieben
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAiDialogOpen(false)}>
-              Abbrechen
-            </Button>
-            <Button onClick={handleGenerateSteps} disabled={aiGenerating || !aiPrompt.trim()}>
-              {aiGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generiert...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generieren
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* KI Sequence Chat */}
+      <AISequenceChat
+        open={aiChatOpen}
+        onOpenChange={setAiChatOpen}
+        onApplySteps={handleApplyAISteps}
+        sequenceId={sequence.id}
+      />
 
       {/* Analytics Sheet */}
       <SequenceAnalyticsSheet

@@ -669,6 +669,8 @@ export function EmailStepEditor({ step, sequenceId, onSave, onCancel }: EmailSte
       <AiEmailWriter
         open={aiWriterOpen}
         onOpenChange={setAiWriterOpen}
+        existingContent={content}
+        existingSubject={subject}
         onApply={(newSubject, newContent) => {
           setSubject(newSubject)
           setContent(newContent)

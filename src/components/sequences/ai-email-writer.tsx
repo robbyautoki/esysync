@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Sheet,
   SheetContent,
@@ -52,14 +52,22 @@ interface AiEmailWriterProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onApply: (subject: string, content: any) => void
+  existingContent?: any
+  existingSubject?: string
 }
 
-export function AiEmailWriter({ open, onOpenChange, onApply }: AiEmailWriterProps) {
+export function AiEmailWriter({ open, onOpenChange, onApply, existingContent, existingSubject }: AiEmailWriterProps) {
   const [instructions, setInstructions] = useState<Instruction[]>([])
   const [selectedInstructionId, setSelectedInstructionId] = useState<string>('')
   const [prompt, setPrompt] = useState('')
   const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState<{ subject: string; content: any } | null>(null)
+  const [mode, setMode] = useState<'new' | 'continue'>('new')
+  
+  const hasExistingContent = existingContent?.content?.some((node: any) => 
+    node.content?.some((child: any) => child.text?.trim()) || 
+    ['ctaButton', 'spacer', 'horizontalRule', 'image'].includes(node.type)
+  )
   
   // Instruction Editor Dialog
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -98,7 +106,10 @@ export function AiEmailWriter({ open, onOpenChange, onApply }: AiEmailWriterProp
         body: JSON.stringify({
           instruction: selectedInstruction?.prompt || '',
           prompt,
-          variables: ['firstName', 'email']
+          variables: ['firstName', 'email'],
+          mode,
+          existingContent: mode === 'continue' ? existingContent : undefined,
+          existingSubject: mode === 'continue' ? existingSubject : undefined
         })
       })
       
@@ -176,26 +187,100 @@ export function AiEmailWriter({ open, onOpenChange, onApply }: AiEmailWriterProp
   
   const selectedInstruction = instructions.find(i => i.id === selectedInstructionId)
   
-  // Konvertiere TipTap Content zu Plain Text für Vorschau
-  const getPreviewText = (content: any): string => {
-    if (!content?.content) return ''
+  // Render TipTap Content als HTML für Vorschau
+  const renderPreview = (content: any): React.ReactNode => {
+    if (!content?.content) return null
     
-    const extractText = (node: any): string => {
-      if (node.type === 'text') return node.text || ''
-      if (node.content) return node.content.map(extractText).join('')
-      return ''
+    const renderNode = (node: any, index: number): React.ReactNode => {
+      switch (node.type) {
+        case 'paragraph':
+          return (
+            <p key={index} className="mb-3">
+              {node.content?.map((child: any, i: number) => renderInline(child, i))}
+            </p>
+          )
+        case 'heading':
+          const Tag = `h${node.attrs?.level || 1}` as keyof JSX.IntrinsicElements
+          return (
+            <Tag key={index} className="font-semibold mb-2 mt-4">
+              {node.content?.map((child: any, i: number) => renderInline(child, i))}
+            </Tag>
+          )
+        case 'bulletList':
+          return (
+            <ul key={index} className="list-disc pl-5 mb-3">
+              {node.content?.map((item: any, i: number) => (
+                <li key={i}>{item.content?.map((p: any, j: number) => 
+                  p.content?.map((c: any, k: number) => renderInline(c, k))
+                )}</li>
+              ))}
+            </ul>
+          )
+        case 'orderedList':
+          return (
+            <ol key={index} className="list-decimal pl-5 mb-3">
+              {node.content?.map((item: any, i: number) => (
+                <li key={i}>{item.content?.map((p: any, j: number) => 
+                  p.content?.map((c: any, k: number) => renderInline(c, k))
+                )}</li>
+              ))}
+            </ol>
+          )
+        case 'blockquote':
+          return (
+            <blockquote key={index} className="border-l-3 border-gray-300 pl-4 italic text-gray-600 my-3">
+              {node.content?.map((child: any, i: number) => renderNode(child, i))}
+            </blockquote>
+          )
+        case 'ctaButton':
+          return (
+            <div key={index} className="my-4">
+              <span 
+                className="inline-block px-6 py-3 rounded-md text-white font-medium text-sm"
+                style={{ backgroundColor: node.attrs?.color || '#000000' }}
+              >
+                {node.attrs?.text || 'Button'}
+              </span>
+            </div>
+          )
+        case 'spacer':
+          const heights: Record<string, string> = { small: '16px', medium: '32px', large: '48px' }
+          return <div key={index} style={{ height: heights[node.attrs?.size] || '32px' }} />
+        case 'horizontalRule':
+          return <hr key={index} className="my-4 border-gray-200" />
+        default:
+          return null
+      }
     }
     
-    return content.content
-      .map((node: any) => {
-        if (node.type === 'bulletList') {
-          return node.content
-            .map((item: any) => '• ' + extractText(item))
-            .join('\n')
+    const renderInline = (node: any, index: number): React.ReactNode => {
+      if (node.type !== 'text') return null
+      
+      let content: React.ReactNode = node.text || ''
+      const marks = node.marks || []
+      
+      for (const mark of marks) {
+        if (mark.type === 'bold') {
+          content = <strong key={`b-${index}`}>{content}</strong>
         }
-        return extractText(node)
-      })
-      .join('\n\n')
+        if (mark.type === 'italic') {
+          content = <em key={`i-${index}`}>{content}</em>
+        }
+        if (mark.type === 'link') {
+          content = <span key={`l-${index}`} className="text-blue-600 underline">{content}</span>
+        }
+        if (mark.type === 'textStyle' && mark.attrs?.color) {
+          content = <span key={`c-${index}`} style={{ color: mark.attrs.color }}>{content}</span>
+        }
+        if (mark.type === 'highlight') {
+          content = <mark key={`h-${index}`} style={{ backgroundColor: mark.attrs?.color || '#fef08a' }}>{content}</mark>
+        }
+      }
+      
+      return <span key={index}>{content}</span>
+    }
+    
+    return content.content.map((node: any, i: number) => renderNode(node, i))
   }
   
   return (
@@ -265,17 +350,57 @@ export function AiEmailWriter({ open, onOpenChange, onApply }: AiEmailWriterProp
                 )}
               </div>
               
+              {/* Mode Selection */}
+              {hasExistingContent && (
+                <div className="space-y-2">
+                  <Label>Modus</Label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="mode"
+                        checked={mode === 'new'}
+                        onChange={() => setMode('new')}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">Neu erstellen</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="mode"
+                        checked={mode === 'continue'}
+                        onChange={() => setMode('continue')}
+                        className="w-4 h-4"
+                      />
+                      <span className="text-sm">Weiter bearbeiten</span>
+                    </label>
+                  </div>
+                  {mode === 'continue' && (
+                    <p className="text-xs text-muted-foreground">
+                      Die KI bearbeitet deinen bestehenden Text basierend auf deiner Anweisung
+                    </p>
+                  )}
+                </div>
+              )}
+              
               {/* Prompt Input */}
               <div className="space-y-2 flex-1">
-                <Label>Was soll die E-Mail machen?</Label>
+                <Label>{mode === 'continue' ? 'Was soll geändert werden?' : 'Was soll die E-Mail machen?'}</Label>
                 <Textarea
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
-                  placeholder="z.B. Willkommens-Email für neue Newsletter-Abonnenten. Soll sich für die Anmeldung bedanken und einen ersten Tipp geben."
-                  className="min-h-[200px] resize-none"
+                  placeholder={mode === 'continue' 
+                    ? "z.B. Füg einen blauen Button 'Zum Shop' hinzu, der zu https://shop.example.com führt"
+                    : "z.B. Willkommens-Email für neue Newsletter-Abonnenten. Soll sich für die Anmeldung bedanken und einen ersten Tipp geben."
+                  }
+                  className="min-h-[150px] resize-none"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Je detaillierter die Beschreibung, desto besser das Ergebnis
+                  {mode === 'continue' 
+                    ? "Beschreibe was hinzugefügt, geändert oder entfernt werden soll"
+                    : "Je detaillierter die Beschreibung, desto besser das Ergebnis"
+                  }
                 </p>
               </div>
               
@@ -319,8 +444,8 @@ export function AiEmailWriter({ open, onOpenChange, onApply }: AiEmailWriterProp
                   
                   {/* Body */}
                   <ScrollArea className="h-[350px]">
-                    <div className="p-4 whitespace-pre-wrap text-sm leading-relaxed">
-                      {getPreviewText(result.content)}
+                    <div className="p-4 text-sm leading-relaxed">
+                      {renderPreview(result.content)}
                     </div>
                   </ScrollArea>
                 </div>

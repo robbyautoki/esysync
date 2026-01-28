@@ -12,6 +12,26 @@ interface CompanyProfile {
   tone: string
   products?: string
   uniqueValue?: string
+  // Brand Voice Guide
+  brandPersonality?: string
+  coreValues?: string
+  missionStatement?: string
+  // Zielgruppen-Verständnis
+  audiencePainPoints?: string
+  audienceDesires?: string
+  audienceLanguage?: string
+  // Produkt/Service Details
+  mainOfferings?: string
+  uniqueSellingPoints?: string
+  pricingInfo?: string
+  // Social Proof
+  customerCount?: string
+  successStories?: string
+  awardsCredentials?: string
+  // Kommunikationsstil
+  examplePhrases?: string
+  wordsToAvoid?: string
+  preferredCTAs?: string
 }
 
 interface ChatMessage {
@@ -116,7 +136,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'OpenAI API Key nicht konfiguriert' }, { status: 500 })
     }
 
-    const openaiModel = model === 'gpt-4o-mini' ? 'gpt-4o-mini' : 'gpt-4o'
+    // Model-Mapping für GPT-5/5.2
+    const modelMap: Record<string, string> = {
+      'gpt-5.2': 'gpt-5.2',
+      'gpt-5': 'gpt-5',
+      'gpt-4o': 'gpt-4o',
+      'gpt-4o-mini': 'gpt-4o-mini'
+    }
+    const openaiModel = modelMap[model] || 'gpt-4o'
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -250,37 +277,66 @@ function buildSystemPrompt(profile: CompanyProfile | null, context?: MarketingCo
   const modeInstructions = mode === 'execute' 
     ? `
 ## MODUS: AUSFÜHREN (Execute)
-Du generierst jetzt VOLLSTÄNDIGE E-Mails mit Inhalt!
+Du generierst jetzt VOLLSTÄNDIGE Newsletter-E-Mails mit Inhalt!
 
-### E-MAIL SCHREIBEN (WICHTIG!)
-Für jeden EMAIL Step musst du einen vollständigen HTML body erstellen:
+### NEWSLETTER SCHREIBEN (SEHR WICHTIG!)
+Für jeden EMAIL Step musst du einen vollständigen, hochwertigen HTML Newsletter erstellen.
 
-**HTML-Struktur:**
-- Verwende einfaches, responsives HTML mit Inline-Styles
-- Maximale Breite: 600px
-- Schriftart: Arial, sans-serif
-- Buttons als <a> Tags mit inline padding/background
+**LÄNGE & STRUKTUR (WICHTIG!):**
+- MINDESTENS 200 Wörter pro E-Mail
+- 5-7 Absätze mit Leerzeilen dazwischen
+- Jeder Absatz maximal 3-4 Sätze
+- line-height: 1.8 für gute Lesbarkeit
 
-**Copywriting-Regeln:**
-- Persönliche Anrede mit {{firstName}} oder "Hey"
-- Kurze Absätze (2-3 Sätze max)
-- Ein klarer CTA pro E-Mail
-- Tonalität passend zum Unternehmensprofil
+**NEWSLETTER-STRUKTUR:**
+1. Persönliche Anrede mit Hook (Aufmerksamkeit gewinnen)
+2. Problem/Situation ansprechen (Pain Point der Zielgruppe)
+3. Agitation (Problem vertiefen, Emotion wecken)
+4. Lösung präsentieren (dein Angebot/Content)
+5. <!-- BILD: Beschreibung --> Platzhalter für Visual
+6. Social Proof (Testimonial, Zahlen, Erfolge)
+7. Klarer CTA mit Button
+8. Persönlicher Abschluss + P.S. (optional)
+
+**FORMATIERUNG:**
+- Wichtige Wörter mit <strong>fett</strong> hervorheben
+- Gelegentlich CAPS für Betonung (sparsam!)
+- Bild-Platzhalter: <!-- BILD: Beschreibung was hier hin soll -->
+- Emojis sparsam und passend zur Tonalität
+
+**HTML-STRUKTUR:**
+- Verwende <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
+- Alle Absätze: <p style="font-size:16px;color:#333;line-height:1.8;margin-bottom:20px;">
+- Buttons als <a> Tags mit inline styles
 - KEIN Footer nötig - wird automatisch hinzugefügt
 
 **Button-Style:**
-\`<a href="{{linkUrl}}" style="display:inline-block;padding:12px 24px;background-color:#000;color:#fff;text-decoration:none;border-radius:6px;font-weight:500;">Button Text</a>\`
+\`<a href="{{linkUrl}}" style="display:inline-block;padding:14px 28px;background-color:#000;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">Button Text →</a>\`
 
-**Beispiel body:**
+**BEISPIEL Newsletter (so soll es aussehen!):**
 \`\`\`html
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-  <p style="font-size:16px;color:#333;line-height:1.6;">Hey {{firstName}},</p>
-  <p style="font-size:16px;color:#333;line-height:1.6;">Schön, dass du dabei bist! Wir freuen uns riesig, dich in unserer Community begrüßen zu dürfen.</p>
-  <p style="font-size:16px;color:#333;line-height:1.6;">Als kleines Willkommensgeschenk haben wir etwas Besonderes für dich:</p>
-  <p style="text-align:center;margin:24px 0;">
-    <a href="{{offerUrl}}" style="display:inline-block;padding:12px 24px;background-color:#000;color:#fff;text-decoration:none;border-radius:6px;font-weight:500;">Jetzt 10% Rabatt sichern</a>
+  <p style="font-size:16px;color:#333;line-height:1.8;margin-bottom:20px;">Hey {{firstName}},</p>
+  
+  <p style="font-size:16px;color:#333;line-height:1.8;margin-bottom:20px;">Kennst du das Gefühl, wenn du morgens aufwachst und deine To-Do-Liste schon <strong>länger ist als dein Kaffee stark</strong>? Du weißt genau, was zu tun ist – aber irgendwie fehlt der Überblick.</p>
+  
+  <p style="font-size:16px;color:#333;line-height:1.8;margin-bottom:20px;">Genau das haben uns letzte Woche über 50 Kunden geschrieben. Und ehrlich? <strong>Wir haben zugehört.</strong></p>
+  
+  <!-- BILD: Screenshot der neuen Dashboard-Ansicht mit Focus Mode -->
+  
+  <p style="font-size:16px;color:#333;line-height:1.8;margin-bottom:20px;">Deshalb haben wir den <strong>FOCUS MODE</strong> entwickelt. Eine neue Ansicht, die dir zeigt, was HEUTE wirklich zählt. Keine Ablenkungen. Keine endlosen Listen. Nur das Wesentliche.</p>
+  
+  <p style="font-size:16px;color:#333;line-height:1.8;margin-bottom:20px;padding:16px;background:#f8f9fa;border-left:4px solid #000;border-radius:4px;"><em>"Ich spare jeden Tag 30 Minuten, weil ich nicht mehr suchen muss."</em><br>— Sarah, Marketing-Managerin</p>
+  
+  <p style="text-align:center;margin:32px 0;">
+    <a href="{{linkUrl}}" style="display:inline-block;padding:14px 28px;background-color:#000;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">Jetzt selbst ausprobieren →</a>
   </p>
-  <p style="font-size:16px;color:#333;line-height:1.6;">Bis bald!</p>
+  
+  <p style="font-size:16px;color:#333;line-height:1.8;margin-bottom:20px;">Probier's aus und sag mir, was du denkst!</p>
+  
+  <p style="font-size:16px;color:#333;line-height:1.8;margin-bottom:20px;">Beste Grüße,<br><strong>Max</strong> vom ESYSYNC Team</p>
+  
+  <p style="font-size:14px;color:#666;line-height:1.6;margin-top:24px;"><em>P.S.: Die ersten 100 Tester bekommen 20% Rabatt auf Pro. Nur noch 23 Plätze frei!</em></p>
 </div>
 \`\`\`
 `
@@ -427,17 +483,57 @@ WICHTIG: Nutze existierende Segmente und Tags wenn sie passen!`
   }
 
   if (profile) {
+    const profileSections: string[] = [
+      `## UNTERNEHMENSPROFIL: ${profile.companyName}`,
+      `### Basis`,
+      `- Branche: ${profile.industry}`,
+      `- Zielgruppe: ${profile.targetAudience}`,
+      `- Tonalität: ${profile.tone}`,
+      profile.products ? `- Produkte/Services: ${profile.products}` : '',
+      profile.uniqueValue ? `- USP: ${profile.uniqueValue}` : ''
+    ]
+
+    if (profile.brandPersonality || profile.coreValues || profile.missionStatement) {
+      profileSections.push('', '### Brand Voice')
+      if (profile.brandPersonality) profileSections.push(`- Markenpersönlichkeit: ${profile.brandPersonality}`)
+      if (profile.coreValues) profileSections.push(`- Kernwerte: ${profile.coreValues}`)
+      if (profile.missionStatement) profileSections.push(`- Mission: ${profile.missionStatement}`)
+    }
+
+    if (profile.audiencePainPoints || profile.audienceDesires || profile.audienceLanguage) {
+      profileSections.push('', '### Zielgruppen-Verständnis')
+      if (profile.audiencePainPoints) profileSections.push(`- Pain Points: ${profile.audiencePainPoints}`)
+      if (profile.audienceDesires) profileSections.push(`- Wünsche & Ziele: ${profile.audienceDesires}`)
+      if (profile.audienceLanguage) profileSections.push(`- Sprache der Zielgruppe: ${profile.audienceLanguage}`)
+    }
+
+    if (profile.mainOfferings || profile.uniqueSellingPoints || profile.pricingInfo) {
+      profileSections.push('', '### Produkt/Service Details')
+      if (profile.mainOfferings) profileSections.push(`- Hauptangebote: ${profile.mainOfferings}`)
+      if (profile.uniqueSellingPoints) profileSections.push(`- USPs: ${profile.uniqueSellingPoints}`)
+      if (profile.pricingInfo) profileSections.push(`- Preisgestaltung: ${profile.pricingInfo}`)
+    }
+
+    if (profile.customerCount || profile.successStories || profile.awardsCredentials) {
+      profileSections.push('', '### Social Proof (Nutze in E-Mails!)')
+      if (profile.customerCount) profileSections.push(`- Kundenzahl: ${profile.customerCount}`)
+      if (profile.successStories) profileSections.push(`- Erfolgsgeschichten: ${profile.successStories}`)
+      if (profile.awardsCredentials) profileSections.push(`- Auszeichnungen: ${profile.awardsCredentials}`)
+    }
+
+    if (profile.examplePhrases || profile.wordsToAvoid || profile.preferredCTAs) {
+      profileSections.push('', '### Kommunikationsstil')
+      if (profile.examplePhrases) profileSections.push(`- Typische Phrasen: ${profile.examplePhrases}`)
+      if (profile.wordsToAvoid) profileSections.push(`- VERMEIDE diese Wörter: ${profile.wordsToAvoid}`)
+      if (profile.preferredCTAs) profileSections.push(`- Bevorzugte CTAs: ${profile.preferredCTAs}`)
+    }
+
+    profileSections.push('', 'WICHTIG: Passe ALLE E-Mails exakt an dieses Profil an! Nutze die Sprache der Zielgruppe, vermeide die genannten Wörter, und integriere Social Proof!')
+
     return `${basePrompt}
 ${contextSection}
 
-## UNTERNEHMENSPROFIL: ${profile.companyName}
-- Branche: ${profile.industry}
-- Zielgruppe: ${profile.targetAudience}
-- Tonalität: ${profile.tone}
-${profile.products ? `- Produkte/Services: ${profile.products}` : ''}
-${profile.uniqueValue ? `- USP: ${profile.uniqueValue}` : ''}
-
-Passe alle Vorschläge an dieses Profil an!`
+${profileSections.filter(s => s !== '').join('\n')}`
   }
 
   return basePrompt + contextSection

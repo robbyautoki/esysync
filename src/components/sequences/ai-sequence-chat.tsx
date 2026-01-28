@@ -80,6 +80,21 @@ interface CompanyProfile {
   tone: string
   products?: string
   uniqueValue?: string
+  brandPersonality?: string
+  coreValues?: string
+  missionStatement?: string
+  audiencePainPoints?: string
+  audienceDesires?: string
+  audienceLanguage?: string
+  mainOfferings?: string
+  uniqueSellingPoints?: string
+  pricingInfo?: string
+  customerCount?: string
+  successStories?: string
+  awardsCredentials?: string
+  examplePhrases?: string
+  wordsToAvoid?: string
+  preferredCTAs?: string
 }
 
 interface MarketingContext {

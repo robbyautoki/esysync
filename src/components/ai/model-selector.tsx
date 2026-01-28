@@ -20,7 +20,9 @@ interface Model {
 }
 
 const MODELS: Model[] = [
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Bestes Modell', icon: Sparkles },
+  { id: 'gpt-5.2', name: 'GPT-5.2', provider: 'OpenAI', description: 'Neuestes & bestes', icon: Sparkles },
+  { id: 'gpt-5', name: 'GPT-5', provider: 'OpenAI', description: 'Sehr leistungsstark', icon: Sparkles },
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Bewährt & zuverlässig', icon: Sparkles },
   { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Schnell & günstig', icon: Zap },
   { id: 'claude-3-5-sonnet', name: 'Claude 3.5', provider: 'Anthropic', description: 'Kreativ & präzise', icon: Sparkles },
 ]

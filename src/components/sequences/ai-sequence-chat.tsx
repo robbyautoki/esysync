@@ -149,7 +149,6 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
   const [savedChats, setSavedChats] = useState<SavedChat[]>([])
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [historySearch, setHistorySearch] = useState('')
-  const [executingMessageId, setExecutingMessageId] = useState<string | null>(null)
 
   const CHATS_STORAGE_KEY = `ai-chats-${sequenceId}`
   const MAX_SAVED_CHATS = 10
@@ -549,8 +548,14 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
       // Auto-Switch: KI signalisiert dass User dem Plan zugestimmt hat
       if (data.shouldExecute && chatMode === 'plan' && data.steps?.length > 0) {
         setChatMode('execute')
-        setLoading(true)
-        setStepsLoading(true)
+        const targetMessageId = assistantMessage.id
+        
+        // Steps auf loading setzen (ausgegraut)
+        setMessages(prev => prev.map(msg => 
+          msg.id === targetMessageId 
+            ? { ...msg, stepsLoading: true }
+            : msg
+        ))
         
         // Erneuter API-Call im Execute-Modus um E-Mail-Bodies zu generieren
         const executeRes = await fetch('/api/ai/chat-sequence', {
@@ -567,19 +572,29 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
         if (executeRes.ok) {
           const executeData = await executeRes.json()
           
-          const executeMessage: ChatMessage = {
-            id: `assistant-execute-${Date.now()}`,
-            role: 'assistant',
-            content: executeData.message,
-            steps: executeData.steps
-          }
-          
-          setMessages(prev => [...prev, executeMessage])
+          // Steps in-place updaten (gleiche Message, keine neue)
+          setMessages(prev => prev.map(msg => 
+            msg.id === targetMessageId 
+              ? { 
+                  ...msg, 
+                  steps: executeData.steps, 
+                  stepsLoading: false,
+                  content: executeData.message || msg.content
+                }
+              : msg
+          ))
           
           if (executeData.steps?.length > 0) {
             setGeneratedSteps(executeData.steps)
             setSelectedStepIds(new Set(executeData.steps.map((s: Step) => s.id)))
           }
+        } else {
+          // Bei Fehler loading zurücksetzen
+          setMessages(prev => prev.map(msg => 
+            msg.id === targetMessageId 
+              ? { ...msg, stepsLoading: false }
+              : msg
+          ))
         }
         
         setLoading(false)
@@ -738,7 +753,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                         {/* Steps als Karten im Chat anzeigen */}
                         {msg.steps && msg.steps.length > 0 && (
                           <div className="ml-11 mt-2">
-                            <div className="space-y-2">
+                            <div className={`space-y-2 transition-opacity duration-300 ${msg.stepsLoading ? 'opacity-50 pointer-events-none' : ''}`}>
                               {msg.steps.map((step, index) => {
                                 const Icon = STEP_ICONS[step.type]
                                 return (
@@ -779,35 +794,44 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                                 )
                               })}
                             </div>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              <Button 
-                                size="sm"
-                                onClick={() => {
-                                  onApplySteps(msg.steps!)
-                                  onOpenChange(false)
-                                  toast.success(`${msg.steps!.length} Steps übernommen`)
-                                }}
-                              >
-                                <Check className="w-4 h-4 mr-1" />
-                                Alle übernehmen
-                              </Button>
-                              {msg.steps!.some(s => s.type === 'EMAIL' && !s.body) && (
+                            {/* Loader während E-Mail-Texte generiert werden */}
+                            {msg.stepsLoading && (
+                              <div className="mt-3">
+                                <Loader rotatingTexts={EXECUTE_LOADER_TEXTS} />
+                              </div>
+                            )}
+                            {/* Buttons nur anzeigen wenn nicht loading */}
+                            {!msg.stepsLoading && (
+                              <div className="mt-4 flex flex-wrap gap-2">
                                 <Button 
                                   size="sm"
-                                  variant="outline"
                                   onClick={() => {
-                                    const stepsWithoutBody = msg.steps!.map(s => 
-                                      s.type === 'EMAIL' ? { ...s, body: null } : s
-                                    )
-                                    onApplySteps(stepsWithoutBody)
+                                    onApplySteps(msg.steps!)
                                     onOpenChange(false)
-                                    toast.success(`${msg.steps!.length} Steps übernommen (ohne E-Mail-Texte)`)
+                                    toast.success(`${msg.steps!.length} Steps übernommen`)
                                   }}
                                 >
-                                  Ohne E-Mail-Texte
+                                  <Check className="w-4 h-4 mr-1" />
+                                  Alle übernehmen
                                 </Button>
-                              )}
-                            </div>
+                                {msg.steps!.some(s => s.type === 'EMAIL' && s.body) && (
+                                  <Button 
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      const stepsWithoutBody = msg.steps!.map(s => 
+                                        s.type === 'EMAIL' ? { ...s, body: null } : s
+                                      )
+                                      onApplySteps(stepsWithoutBody)
+                                      onOpenChange(false)
+                                      toast.success(`${msg.steps!.length} Steps übernommen (ohne E-Mail-Texte)`)
+                                    }}
+                                  >
+                                    Ohne E-Mail-Texte
+                                  </Button>
+                                )}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

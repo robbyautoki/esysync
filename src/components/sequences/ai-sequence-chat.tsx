@@ -752,8 +752,8 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                         </Message>
                         {/* Steps als Karten im Chat anzeigen */}
                         {msg.steps && msg.steps.length > 0 && (
-                          <div className="ml-11 mt-2">
-                            <div className={`space-y-2 transition-opacity duration-300 ${msg.stepsLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+                          <div className="ml-11 mt-2 relative">
+                            <div className={`space-y-2 transition-opacity duration-300 ${msg.stepsLoading ? 'opacity-30 pointer-events-none' : ''}`}>
                               {msg.steps.map((step, index) => {
                                 const Icon = STEP_ICONS[step.type]
                                 return (
@@ -794,10 +794,12 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                                 )
                               })}
                             </div>
-                            {/* Loader während E-Mail-Texte generiert werden */}
+                            {/* Overlay mit Loader mittig über den Steps */}
                             {msg.stepsLoading && (
-                              <div className="mt-3">
-                                <Loader rotatingTexts={EXECUTE_LOADER_TEXTS} />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="bg-background/80 backdrop-blur-sm rounded-lg px-6 py-3 border shadow-sm">
+                                  <Loader rotatingTexts={EXECUTE_LOADER_TEXTS} />
+                                </div>
                               </div>
                             )}
                             {/* Buttons nur anzeigen wenn nicht loading */}
@@ -836,7 +838,7 @@ export function AISequenceChat({ open, onOpenChange, onApplySteps, sequenceId }:
                         )}
                       </div>
                     ))}
-                    {loading && (
+                    {loading && !messages.some(m => m.stepsLoading) && (
                       <Message role="assistant">
                         <Loader 
                           rotatingTexts={chatMode === 'plan' ? PLAN_LOADER_TEXTS : EXECUTE_LOADER_TEXTS}

@@ -244,6 +244,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
     id: string
     type: 'EMAIL' | 'DELAY' | 'TAG' | 'SEGMENT' | 'CONDITION'
     subject?: string | null
+    body?: string | null
     delayValue?: number | null
     delayUnit?: string | null
     tagAction?: string | null
@@ -258,7 +259,7 @@ export function SequenceEditor({ sequence: initialSequence }: { sequence: Sequen
       type: aiStep.type,
       order: steps.length + index,
       subject: aiStep.subject || null,
-      content: aiStep.type === 'EMAIL' ? { type: 'doc', content: [] } : null,
+      content: aiStep.type === 'EMAIL' ? (aiStep.body || { type: 'doc', content: [] }) : null,
       delayValue: aiStep.delayValue || null,
       delayUnit: aiStep.delayUnit || null,
       tagAction: aiStep.tagAction || null,

@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
           lte: now
         },
         sequence: {
+          isActive: true,                    // NUR aktive Sequenzen!
           OR: [
             { scheduledStartAt: null },      // Kein Startdatum = sofort
             { scheduledStartAt: { lte: now } } // Startdatum erreicht
